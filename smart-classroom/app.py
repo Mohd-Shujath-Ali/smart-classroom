@@ -7,7 +7,7 @@ import os, sys, time, threading, base64
 
 import cv2
 import numpy as np
-from flask import Flask, render_template, Response, jsonify, request, make_response
+from flask import Flask, render_template, Response, jsonify, request, make_response, send_from_directory
 from flask_socketio import SocketIO
 import csv
 import datetime
@@ -195,6 +195,33 @@ def mjpeg_stream():
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/models/<path:filename>")
+def serve_model(filename):
+    """Serve ONNX model files statically for WebGPU / WASM browser inference."""
+    models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
+    resp = make_response(send_from_directory(models_dir, filename))
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
+
+@app.route("/api/model_info")
+def api_model_info():
+    """Return model inference parameters for browser client engine."""
+    onnx_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "best.onnx")
+    return jsonify({
+        "model_name": "best.onnx",
+        "onnx_available": os.path.exists(onnx_path),
+        "input_shape": [1, 3, 640, 640],
+        "input_name": "images",
+        "output_name": "output0",
+        "classes": {0: "person"},
+        "conf_threshold": CONF_THRESHOLD,
+        "iou_threshold": 0.45,
+        "supported_backends": ["webgpu", "wasm"]
+    })
 
 
 @app.route("/video_feed")
