@@ -13,6 +13,9 @@
   <!-- Libraries (CDN) -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- ONNX Runtime Web for WebGPU & WASM SIMD in-browser inference -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.all.min.js"></script>
+  <script src="/static/js/webgpu_detector.js"></script>
 
   <style>
     /* ════════════════════════════════════════════════════════════
@@ -768,6 +771,8 @@
         </div>
         <div class="video-wrap">
           <img id="videoFeed" src="" alt="Video stream" />
+          <video id="clientVideo" playsinline muted autoplay style="display:none;"></video>
+          <canvas id="clientCanvas" style="display:none; width:100%; height:100%; object-fit:contain;"></canvas>
           <div class="no-feed-overlay" id="noFeed">
             <div class="nf-icon">🎥</div>
             <h3>No Active Feed</h3>
@@ -892,6 +897,7 @@
         </div>
         <div class="result-img-wrap">
           <img id="resultImage" alt="Detection result" />
+          <canvas id="clientImageCanvas" style="display:none; width:100%; border-radius: var(--r);"></canvas>
         </div>
       </div>
 
@@ -970,6 +976,275 @@ const CHART_THR = 3;   // update charts every N socket events
 let updateCtr  = 0;
 let logRowCtr  = 0;
 let prevQ      = { Q1: null, Q2: null, Q3: null, Q4: null };
+
+/* ───────────────────────────────────────────────────────────
+   In-Browser WebGPU & WASM SIMD Detection Engine
+─────────────────────────────────────────────────────────── */
+let clientDetector = null;
+let clientStream   = null;
+let clientAnimId   = null;
+let clientRunning  = false;
+let clientFps      = 0.0;
+let clientFrameCount = 0;
+let lastFrameTime  = performance.now();
+
+async function getClientDetector() {
+  if (!clientDetector) {
+    clientDetector = new WebGPUDetector({
+      modelPath: '/models/best.onnx',
+      confThreshold: 0.40,
+      iouThreshold: 0.45
+    });
+  }
+  return clientDetector;
+}
+
+function calculateQuadrants(detections, width, height) {
+  const midX = width / 2;
+  const midY = height / 2;
+  const counts = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+  for (const det of detections) {
+    const [x1, y1, x2, y2] = det.bbox;
+    const cx = (x1 + x2) / 2;
+    const cy = (y1 + y2) / 2;
+    if (cx < midX && cy < midY) counts.Q1++;
+    else if (cx >= midX && cy < midY) counts.Q2++;
+    else if (cx < midX && cy >= midY) counts.Q3++;
+    else counts.Q4++;
+  }
+  return counts;
+}
+
+function drawClientHUD(canvas, sourceElement, detections, counts, fps, latency, backend) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const midX = w / 2;
+  const midY = h / 2;
+
+  ctx.drawImage(sourceElement, 0, 0, w, h);
+
+  // Quadrant dividing lines
+  ctx.strokeStyle = 'rgba(255, 255, 0, 0.75)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(midX, 0); ctx.lineTo(midX, h);
+  ctx.moveTo(0, midY); ctx.lineTo(w, midY);
+  ctx.stroke();
+
+  // Quadrant labels
+  ctx.font = 'bold 13px Inter, sans-serif';
+  ctx.fillStyle = '#ffff00';
+  ctx.fillText(`Q1: ${counts.Q1} person(s)`, 10, midY - 10);
+  const q2Text = `Q2: ${counts.Q2} person(s)`;
+  ctx.fillText(q2Text, w - ctx.measureText(q2Text).width - 10, midY - 10);
+  ctx.fillText(`Q3: ${counts.Q3} person(s)`, 10, midY + 24);
+  const q4Text = `Q4: ${counts.Q4} person(s)`;
+  ctx.fillText(q4Text, w - ctx.measureText(q4Text).width - 10, midY + 24);
+
+  // Bounding boxes
+  ctx.lineWidth = 2;
+  for (const det of detections) {
+    const [x1, y1, x2, y2] = det.bbox;
+    ctx.strokeStyle = '#10b981';
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+    const label = `person ${(det.confidence * 100).toFixed(0)}%`;
+    ctx.font = 'bold 11px Inter, sans-serif';
+    const textWidth = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.9)';
+    ctx.fillRect(x1, Math.max(0, y1 - 18), textWidth + 8, 18);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(label, x1 + 4, Math.max(13, y1 - 4));
+  }
+
+  // Bottom HUD info
+  const total = counts.Q1 + counts.Q2 + counts.Q3 + counts.Q4;
+  ctx.font = 'bold 13px JetBrains Mono, monospace';
+  ctx.fillStyle = '#06b6d4';
+  ctx.fillText(`Total: ${total} | ⚡ ${backend.toUpperCase()}: ${latency}ms | ${fps.toFixed(1)} FPS`, 10, h - 12);
+}
+
+function getAppliancesStateLocal(total) {
+  if (total === 0) return { fans: 0, lights: 0 };
+  else if (total <= 10) return { fans: 2, lights: 4 };
+  else if (total < 20) return { fans: 4, lights: 6 };
+  else return { fans: 6, lights: 8 };
+}
+
+async function startClientWebcam() {
+  toast('Initializing WebGPU / WASM SIMD model...', 'info');
+  const detector = await getClientDetector();
+  await detector.loadModel(p => {
+    if (p.status === 'loading') toast(`Loading model for ${p.provider.toUpperCase()}...`, 'info');
+  });
+
+  try {
+    clientStream = await navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      audio: false
+    });
+  } catch (err) {
+    toast(`Camera error: ${err.message}`, 'error');
+    return;
+  }
+
+  const v = $('clientVideo');
+  const c = $('clientCanvas');
+  v.srcObject = clientStream;
+  await v.play();
+
+  c.width = v.videoWidth || 640;
+  c.height = v.videoHeight || 480;
+  c.style.display = 'block';
+  $('videoFeed').style.display = 'none';
+  $('noFeed').style.display = 'none';
+  $('liveBadge').classList.remove('hidden');
+
+  setStatus('live');
+  $('startBtn').disabled = true;
+  $('stopBtn').disabled = false;
+  clientRunning = true;
+  clientFrameCount = 0;
+  lastFrameTime = performance.now();
+
+  toast(`Running on ${detector.activeBackend.toUpperCase()}`, 'success');
+  requestAnimationFrame(clientDetectionLoop);
+}
+
+function stopClientWebcam() {
+  clientRunning = false;
+  if (clientAnimId) cancelAnimationFrame(clientAnimId);
+  if (clientStream) {
+    clientStream.getTracks().forEach(t => t.stop());
+    clientStream = null;
+  }
+  const v = $('clientVideo');
+  v.srcObject = null;
+  $('clientCanvas').style.display = 'none';
+  $('videoFeed').style.display = 'block';
+  $('videoFeed').src = '';
+  $('noFeed').style.display = '';
+  $('liveBadge').classList.add('hidden');
+  setStatus('stopped');
+  $('startBtn').disabled = false;
+  $('stopBtn').disabled = true;
+  toast('Client detection stopped', 'info');
+}
+
+async function clientDetectionLoop() {
+  if (!clientRunning) return;
+
+  const v = $('clientVideo');
+  const c = $('clientCanvas');
+  if (v.readyState >= 2) {
+    if (c.width !== v.videoWidth && v.videoWidth > 0) {
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+    }
+
+    const res = await clientDetector.detect(v);
+    const counts = calculateQuadrants(res.detections, c.width, c.height);
+    const total = counts.Q1 + counts.Q2 + counts.Q3 + counts.Q4;
+
+    const now = performance.now();
+    clientFrameCount++;
+    const dt = now - lastFrameTime;
+    lastFrameTime = now;
+    clientFps = dt > 0 ? 1000 / dt : 0;
+
+    // Draw HUD
+    drawClientHUD(c, v, res.detections, counts, clientFps, res.inferenceTimeMs, res.backend);
+
+    // Update stats
+    $('stFps').textContent = clientFps.toFixed(1);
+    $('stPersons').textContent = total;
+    $('stFrames').textContent = clientFrameCount;
+    $('stSource').textContent = res.backend.toUpperCase();
+
+    // Update Quadrant cells
+    setQ('qn1', 'qc1', 'Q1', counts.Q1);
+    setQ('qn2', 'qc2', 'Q2', counts.Q2);
+    setQ('qn3', 'qc3', 'Q3', counts.Q3);
+    setQ('qn4', 'qc4', 'Q4', counts.Q4);
+    $('totalBadge').textContent = `Total: ${total}`;
+
+    // Appliance calculation
+    const appliances = getAppliancesStateLocal(total);
+    setAppliance('fanCount', 'fanBox', appliances.fans);
+    setAppliance('lightCount', 'lightBox', appliances.lights);
+
+    // Throttled Chart & Log
+    if (clientFrameCount % CHART_THR === 0) {
+      histLabels.push(clientFrameCount);
+      hD.Q1.push(counts.Q1); hD.Q2.push(counts.Q2); hD.Q3.push(counts.Q3); hD.Q4.push(counts.Q4); hD.total.push(total);
+      if (histLabels.length > MAX_HIST) {
+        histLabels.shift();
+        [hD.Q1, hD.Q2, hD.Q3, hD.Q4, hD.total].forEach(a => a.shift());
+      }
+      histChart.update('none');
+      donutChart.data.datasets[0].data = [counts.Q1, counts.Q2, counts.Q3, counts.Q4];
+      donutChart.update('none');
+    }
+
+    addLogRow({ frame: clientFrameCount, fps: clientFps.toFixed(1), Q1: counts.Q1, Q2: counts.Q2, Q3: counts.Q3, Q4: counts.Q4, total });
+  }
+
+  if (clientRunning) {
+    clientAnimId = requestAnimationFrame(clientDetectionLoop);
+  }
+}
+
+async function detectImageClient(file) {
+  toast('Running in-browser WebGPU / WASM SIMD detection...', 'info');
+  const detector = await getClientDetector();
+  await detector.loadModel();
+
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.src = url;
+  await new Promise(r => img.onload = r);
+
+  const res = await detector.detect(img);
+  const counts = calculateQuadrants(res.detections, img.naturalWidth, img.naturalHeight);
+  const total = counts.Q1 + counts.Q2 + counts.Q3 + counts.Q4;
+
+  const c = $('clientImageCanvas');
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  c.style.display = 'block';
+  $('resultImage').style.display = 'none';
+
+  drawClientHUD(c, img, res.detections, counts, 0, res.inferenceTimeMs, res.backend);
+
+  // Update image quadrants
+  ['Q1', 'Q2', 'Q3', 'Q4'].forEach((q, i) => $(`iq${i+1}`).textContent = counts[q]);
+  $('imgTotalBadge').textContent = `${total} person(s)`;
+  $('imgDetBadge').textContent = res.detections.length;
+
+  $('stPersons').textContent = total;
+  $('stFrames').textContent = 1;
+  $('stSource').textContent = res.backend.toUpperCase();
+  setStatus('image');
+
+  const list = $('detList');
+  if (res.detections.length === 0) {
+    list.innerHTML = '<p class="det-empty">No persons detected in this image</p>';
+  } else {
+    list.innerHTML = res.detections.map((det, i) => `
+      <div class="det-item">
+        <div class="det-id">${i + 1}</div>
+        <div class="det-label">${det.label}</div>
+        <span class="det-conf">${(det.confidence * 100).toFixed(1)}%</span>
+        <span class="det-quad Q1">⚡ ${res.backend.toUpperCase()}</span>
+      </div>`).join('');
+  }
+
+  const appState = getAppliancesStateLocal(total);
+  toast(`Found ${total} person(s) in ${res.inferenceTimeMs}ms via ${res.backend.toUpperCase()}`, 'success');
+  setTimeout(() => toast(`Energy Logic: Sets ${appState.fans} Fans & ${appState.lights} Lights active.`, 'info'), 800);
+  URL.revokeObjectURL(url);
+}
 
 /* ───────────────────────────────────────────────────────────
    Chart.js – shared defaults
