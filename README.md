@@ -30,10 +30,16 @@ A real-time Computer Vision system and web dashboard designed for modern educati
 - Built with **Flask**, **Flask-SocketIO**, and raw modern CSS styling.
 - WebSocket connections push sub-second detection metrics to the frontend alongside the MJPEG video stream.
 
+### 5. In-Browser Client Inference (WebGPU & WASM SIMD)
+- Runs YOLOv8 directly inside the web browser via ONNX Runtime Web (`models/best.onnx`).
+- **Hardware Accelerated:** Automatically leverages client **WebGPU** for GPU acceleration, with an automatic fallback to multi-threaded **WASM SIMD**.
+- Zero server compute load: processes local webcam streams and image uploads directly on the client machine with real-time HUD rendering and telemetry sync.
+
 ---
 
 ## 🛠️ Technology Stack
-* **Computer Vision:** OpenCV (`cv2`), Ultralytics YOLOv8 (`models/best.pt`)
+* **Computer Vision:** OpenCV (`cv2`), Ultralytics YOLOv8 (`models/best.pt`), ONNX Runtime (`models/best.onnx`)
+* **In-Browser AI:** ONNX Runtime Web (`ort.webgpu`), WebGPU API, WebAssembly (WASM SIMD)
 * **Backend Server:** Python 3, Flask, Flask-SocketIO
 * **Database:** SQLite (`sqlite3`) with WAL mode
 * **Frontend UI:** HTML5, Vanilla CSS, Vanilla JavaScript, Chart.js
@@ -132,6 +138,7 @@ smart-classroom/
 3. **Automated Tracking:** As the model runs, quadrant counts, total occupant count, and Automated Appliances update in real time.
 4. **Image Upload:** Switch to Image mode to drag and drop or upload a photo for instant detection and appliance evaluation.
 5. **Export Findings:** In the **Historical Database Data** card, view 24-hour trends, click **CSV** to download a spreadsheet, or click **Graph** to download a PNG of the chart.
+6. **Execution Engines:** Use the engine dropdown to switch between **⚡ In-Browser (WebGPU / WASM)** for client-side edge inference or **🖥️ Server Stream** for backend processing.
 
 ---
 

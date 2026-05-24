@@ -718,6 +718,10 @@
     </div>
 
     <div class="controls">
+      <select id="engineSelect" title="Inference Execution Engine">
+        <option value="webgpu">⚡ In-Browser (WebGPU / WASM)</option>
+        <option value="server">🖥️ Server Stream (Flask)</option>
+      </select>
       <select id="sourceSelect">
         <option value="webcam">📷 Webcam</option>
         <option value="video">🎬 Video File</option>
@@ -729,6 +733,9 @@
       <div class="status-pill idle" id="statusPill">
         <div class="s-dot" id="statusDot"></div>
         <span id="statusTxt">IDLE</span>
+      </div>
+      <div class="status-pill live" id="hwBadge" style="background: rgba(16,185,129,.12); color: var(--green); border: 1px solid rgba(16,185,129,.3);" title="Client Hardware Acceleration">
+        <span id="hwBadgeTxt">⚡ WEBGPU READY</span>
       </div>
     </div>
   </header>
@@ -1188,6 +1195,20 @@ async function clientDetectionLoop() {
     }
 
     addLogRow({ frame: clientFrameCount, fps: clientFps.toFixed(1), Q1: counts.Q1, Q2: counts.Q2, Q3: counts.Q3, Q4: counts.Q4, total });
+
+    // Sync telemetry to server every ~2 seconds (60 frames)
+    if (clientFrameCount % 60 === 0) {
+      fetch('/api/client_telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          frame: clientFrameCount,
+          fps: clientFps.toFixed(1),
+          Q1: counts.Q1, Q2: counts.Q2, Q3: counts.Q3, Q4: counts.Q4,
+          total: total
+        })
+      }).catch(() => {});
+    }
   }
 
   if (clientRunning) {
@@ -1388,8 +1409,29 @@ $('sourceSelect').addEventListener('change', function () {
 });
 
 $('startBtn').addEventListener('click', async () => {
-  const src  = $('sourceSelect').value;
+  const engine = $('engineSelect').value;
+  const src    = $('sourceSelect').value;
   if (src === 'image') return;
+
+  if (engine === 'webgpu' && src === 'webcam') {
+    await fetch('/api/client_session/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'client_webgpu' })
+    }).catch(() => {});
+
+    /* reset stats */
+    histLabels.length = 0;
+    [hD.Q1, hD.Q2, hD.Q3, hD.Q4, hD.total].forEach(a => a.length = 0);
+    histChart.update();
+    $('logBody').innerHTML = '';
+    logRowCtr = 0;
+    updateCtr = 0;
+    $('logCount').textContent = '0 entries';
+
+    startClientWebcam();
+    return;
+  }
 
   const body = { source: src };
   if (src === 'video') {
@@ -1423,7 +1465,14 @@ $('startBtn').addEventListener('click', async () => {
   } catch { toast('Server error', 'error'); }
 });
 
-$('stopBtn').addEventListener('click', () => fetch('/api/stop', { method:'POST' }));
+$('stopBtn').addEventListener('click', async () => {
+  if (clientRunning) {
+    stopClientWebcam();
+    await fetch('/api/client_session/stop', { method: 'POST' }).catch(() => {});
+  } else {
+    fetch('/api/stop', { method:'POST' });
+  }
+});
 
 /* ───────────────────────────────────────────────────────────
    Image Upload
@@ -1445,6 +1494,12 @@ $('imgInput').addEventListener('change', function () {
 
 async function processImageFile(file) {
   if (!file.type.startsWith('image/')) { toast('Not a valid image file', 'error'); return; }
+
+  const engine = $('engineSelect').value;
+  if (engine === 'webgpu') {
+    await detectImageClient(file);
+    return;
+  }
 
   toast('Analysing image…', 'info');
   const fd = new FormData();
@@ -1631,11 +1686,29 @@ function downloadDbChart() {
   if(!canvas) return;
   const link = document.createElement('a');
   link.download = 'classroom_historical_graph.png';
-  // Chart.js uses white background if left transparent, let's just grab the data url
-  // Note: we can fill a white/dark background but standard PNG supports transparency.
   link.href = canvas.toDataURL('image/png');
   link.click();
 }
+
+/* ───────────────────────────────────────────────────────────
+   Hardware Acceleration Capability Detection
+─────────────────────────────────────────────────────────── */
+(async function initHardwareDetection() {
+  const badge = $('hwBadgeTxt');
+  if (!badge) return;
+  if (typeof navigator !== 'undefined' && navigator.gpu) {
+    try {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (adapter) {
+        badge.textContent = '⚡ WEBGPU ACCELERATED';
+        return;
+      }
+    } catch (e) {}
+  }
+  badge.textContent = '⚙️ WASM SIMD READY';
+  $('hwBadge').style.borderColor = 'rgba(6,182,212,.3)';
+  $('hwBadge').style.color = 'var(--cyan)';
+})();
 
 </script>
 </body>

@@ -224,6 +224,48 @@ def api_model_info():
     })
 
 
+# ── Client WebGPU Telemetry Sync ──────────────────────────────────────────────
+client_session_state = {"session_id": None}
+
+@app.route("/api/client_session/start", methods=["POST"])
+def api_client_session_start():
+    data = request.json or {}
+    source = data.get("source", "client_webgpu")
+    sid = start_session(source)
+    client_session_state["session_id"] = sid
+    return jsonify({"session_id": sid, "status": "started"})
+
+
+@app.route("/api/client_session/stop", methods=["POST"])
+def api_client_session_stop():
+    sid = client_session_state.get("session_id")
+    if sid:
+        flush_all()
+        end_session(sid)
+        client_session_state["session_id"] = None
+    return jsonify({"status": "stopped"})
+
+
+@app.route("/api/client_telemetry", methods=["POST"])
+def api_client_telemetry():
+    """Record telemetry pushed from in-browser WebGPU / WASM client."""
+    data = request.json or {}
+    sid = client_session_state.get("session_id")
+    if not sid:
+        sid = start_session("client_webgpu")
+        client_session_state["session_id"] = sid
+
+    frame_no = int(data.get("frame", 1))
+    fps = float(data.get("fps", 0.0))
+    q1 = int(data.get("Q1", 0))
+    q2 = int(data.get("Q2", 0))
+    q3 = int(data.get("Q3", 0))
+    q4 = int(data.get("Q4", 0))
+
+    record_frame(sid, frame_no, fps, q1, q2, q3, q4)
+    return jsonify({"status": "recorded", "session_id": sid})
+
+
 @app.route("/video_feed")
 def video_feed():
     return Response(mjpeg_stream(),
