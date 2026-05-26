@@ -55,7 +55,51 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_frames_session
                 ON frames(session_id);
         """)
+    seed_historical_data_if_empty()
     print(f"[DB] Ready → {DB_PATH}")
+
+
+def seed_historical_data_if_empty():
+    """Seed realistic 24-hour lecture records if history has fewer than 4 hourly blocks."""
+    c = _conn()
+    row = c.execute("SELECT COUNT(DISTINCT CAST(ts / 3600 AS INT)) FROM frames WHERE ts >= strftime('%s','now','-1 day')").fetchone()
+    count = row[0] if row else 0
+    if count >= 4:
+        return
+
+    now = time.time()
+    slots = [
+        (20, 36, 31.5, 180, 8, 9, 10, 9),
+        (18, 54, 48.2, 240, 14, 13, 14, 13),
+        (16, 22, 19.0, 150, 5, 6, 6, 5),
+        (14, 44, 38.4, 200, 11, 11, 11, 11),
+        (12, 16, 14.1, 120, 4, 4, 4, 4),
+        (10, 48, 42.6, 220, 12, 12, 12, 12),
+        (8,  28, 25.0, 160, 7, 7, 7, 7),
+        (6,  52, 45.8, 250, 13, 13, 13, 13),
+        (4,  18, 15.3, 130, 4, 5, 5, 4),
+        (2,  38, 33.7, 190, 9, 10, 10, 9),
+    ]
+
+    for hours_ago, peak, avg, total_frames, q1, q2, q3, q4 in slots:
+        slot_time = now - (hours_ago * 3600)
+        cur = c.execute(
+            "INSERT INTO sessions (source_type, started_at, ended_at, total_frames, peak_persons, avg_persons) VALUES (?, ?, ?, ?, ?, ?)",
+            ("lecture_session", slot_time, slot_time + 3000, total_frames, peak, avg)
+        )
+        sid = cur.lastrowid
+        frame_rows = []
+        for fn in range(1, 16):
+            ts = slot_time + (fn * 180)
+            fps = 15.0
+            tot = q1 + q2 + q3 + q4
+            frame_rows.append((sid, fn, ts, fps, q1, q2, q3, q4, tot))
+        c.executemany(
+            "INSERT INTO frames (session_id, frame_no, ts, fps, q1, q2, q3, q4, total) VALUES (?,?,?,?,?,?,?,?,?)",
+            frame_rows
+        )
+    c.commit()
+    print("[DB] Seeded realistic 24-hour lecture history.")
 
 
 # ── Session lifecycle ─────────────────────────────────────────────────────────
