@@ -334,6 +334,76 @@ def api_stop():
     return jsonify({"status": "stopped"})
 
 
+@app.route("/api/sample_list")
+def api_sample_list():
+    """Return available sample images for instant 1-click testing."""
+    samples = [
+        {"id": "sample_1.jpg", "label": "Classroom View 1", "badge": "34 Students", "desc": "Mid-density seating"},
+        {"id": "sample_2.jpg", "label": "Classroom View 2", "badge": "56 Students", "desc": "Full lecture hall"},
+        {"id": "sample_3.jpg", "label": "Classroom View 3", "badge": "12 Students", "desc": "Seminar grouping"}
+    ]
+    return jsonify(samples)
+
+
+@app.route("/api/sample_image/<name>", methods=["GET", "POST"])
+def api_sample_image(name):
+    """Load and infer sample image directly without requiring file upload."""
+    if not name.endswith(".jpg"):
+        name = f"sample_{name}.jpg" if not name.startswith("sample_") else f"{name}.jpg"
+
+    img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inputs", name)
+    if not os.path.exists(img_path):
+        return jsonify({"error": f"Sample image {name} not found"}), 404
+
+    frame = cv2.imread(img_path)
+    if frame is None:
+        return jsonify({"error": "Cannot read image file"}), 400
+
+    detections = detector.detect(frame)
+    counts     = get_quadrant_counts(frame, detections)
+    total      = sum(counts.values())
+
+    annotated  = visualizer.draw(frame.copy(), detections)
+    visualizer.draw_quadrants(annotated, counts)
+
+    _, buf    = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    img_b64   = "data:image/jpeg;base64," + base64.b64encode(buf).decode()
+
+    # Log to DB as a single-frame session
+    sid = start_session(f"sample_{name}")
+    record_frame(sid, 1, 0.0, counts["Q1"], counts["Q2"], counts["Q3"], counts["Q4"])
+    flush_all()
+    end_session(sid)
+
+    state.update({
+        "total_persons": total,
+        "quadrants"    : counts,
+        "source_type"  : "image",
+    })
+
+    det_list = []
+    for i, d in enumerate(detections):
+        x1, y1, x2, y2 = d["bbox"]
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+        det_list.append({
+            "id"        : i + 1,
+            "label"     : d["label"],
+            "confidence": round(d["confidence"] * 100, 1),
+            "bbox"      : [int(x) for x in d["bbox"]],
+            "quadrant"  : point_quadrant(frame, cx, cy),
+        })
+
+    return jsonify({
+        "sample_name"    : name,
+        "image"          : img_b64,
+        "quadrants"      : counts,
+        "total"          : total,
+        "appliances"     : get_appliances_state(total),
+        "detection_count": len(detections),
+        "detections"     : det_list,
+    })
+
+
 @app.route("/api/detect_image", methods=["POST"])
 def api_detect_image():
     if "file" not in request.files:
