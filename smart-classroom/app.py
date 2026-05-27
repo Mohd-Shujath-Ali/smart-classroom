@@ -74,13 +74,13 @@ def get_quadrant_counts(frame, detections):
 def get_appliances_state(total):
     """Energy-saving rules: decide fan/light count based on occupancy."""
     if total == 0:
-        return {"fans": 0, "lights": 0}
+        return {"fans": 0, "lights": 0, "mode": "ECO SAVING (0 Students)", "level": "off"}
     elif total <= 10:
-        return {"fans": 2, "lights": 4}
+        return {"fans": 2, "lights": 4, "mode": "LOW POWER (1-10 Students)", "level": "low"}
     elif total < 20:
-        return {"fans": 4, "lights": 6}
+        return {"fans": 4, "lights": 6, "mode": "MEDIUM POWER (11-19 Students)", "level": "med"}
     else:
-        return {"fans": 6, "lights": 8}
+        return {"fans": 6, "lights": 8, "mode": "MAX POWER (20+ Students)", "level": "high"}
 
 
 def point_quadrant(frame, cx, cy):
@@ -96,6 +96,16 @@ def detection_loop(source):
     global output_frame
 
     cap = cv2.VideoCapture(source)
+    if not cap.isOpened() and (source == CAMERA_INDEX or source == 0 or source == "0"):
+        # Graceful fallback to multi-scene classroom demo video
+        sample_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inputs", "sample.mp4")
+        if os.path.exists(sample_path):
+            cap = cv2.VideoCapture(sample_path)
+            source = sample_path
+            socketio.emit("srv_notice", {
+                "message": "Webcam 0 unavailable. Auto-switched to multi-scene classroom demo feed."
+            })
+
     if not cap.isOpened():
         state["running"] = False
         socketio.emit("srv_error", {"message": f"Cannot open source: {source}"})
@@ -109,12 +119,13 @@ def detection_loop(source):
         if not ret:
             if not isinstance(source, int):   # loop video files
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                time.sleep(0.03)
                 continue
             break
 
-        now      = time.time()
-        dt       = now - prev_time
-        fps      = 1.0 / dt if dt > 0 else 0.0
+        now       = time.time()
+        dt        = now - prev_time
+        fps       = 1.0 / dt if dt > 0 else 0.0
         prev_time = now
         frame_count += 1
 
@@ -165,6 +176,13 @@ def detection_loop(source):
             "total": total,
             "appliances": get_appliances_state(total)
         })
+
+        # Cap speed for video files to realistic 24-30 fps
+        if not isinstance(source, int):
+            elapsed = time.time() - now
+            sleep_time = 0.04 - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
 
     cap.release()
     
@@ -282,11 +300,13 @@ def api_start():
 
     if source_type == "webcam":
         source = CAMERA_INDEX
-    elif source_type == "video":
+    elif source_type in ("video", "demo"):
         path = data.get("path", "").strip()
-        if not path:
-            return jsonify({"error": "No video path provided"}), 400
-        source = path
+        sample_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inputs", "sample.mp4")
+        if not path or source_type == "demo":
+            source = sample_path if os.path.exists(sample_path) else "inputs/sample.mp4"
+        else:
+            source = path
     else:
         return jsonify({"error": "Invalid source type"}), 400
 
@@ -341,6 +361,12 @@ def api_detect_image():
     record_frame(sid, 1, 0.0, counts["Q1"], counts["Q2"], counts["Q3"], counts["Q4"])
     flush_all()
     end_session(sid)
+
+    state.update({
+        "total_persons": total,
+        "quadrants"    : counts,
+        "source_type"  : "image",
+    })
 
     det_list = []
     for i, d in enumerate(detections):
@@ -410,4 +436,4 @@ if __name__ == "__main__":
     print("  🎓  Smart Classroom AI Dashboard")
     print("  ➜  Open: http://localhost:5050")
     print("═" * 52 + "\n")
-    socketio.run(app, host="0.0.0.0", port=5050, debug=False, use_reloader=False)
+    socketio.run(app, host="0.0.0.0", port=5050, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
