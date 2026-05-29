@@ -428,12 +428,26 @@ def api_detect_image():
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
 
-    img_bytes = request.files["file"].read()
-    nparr     = np.frombuffer(img_bytes, np.uint8)
-    frame     = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    file = request.files["file"]
+    if not file or file.filename == "":
+        return jsonify({"error": "No file selected"}), 400
+
+    img_bytes = file.read()
+    if not img_bytes:
+        return jsonify({"error": "Uploaded file is empty"}), 400
+
+    nparr = np.frombuffer(img_bytes, np.uint8)
+    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     if frame is None:
-        return jsonify({"error": "Cannot decode image"}), 400
+        return jsonify({"error": "Cannot decode image. Please provide a standard JPG, PNG, or WebP."}), 400
+
+    # Normalize image dimensions if excessively large to ensure ultra-fast inference and clear HUD labels
+    h, w = frame.shape[:2]
+    max_dim = 1280
+    if max(h, w) > max_dim:
+        scale = max_dim / max(h, w)
+        frame = cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
     detections = detector.detect(frame)
     counts     = get_quadrant_counts(frame, detections)
@@ -442,11 +456,11 @@ def api_detect_image():
     annotated  = visualizer.draw(frame.copy(), detections)
     visualizer.draw_quadrants(annotated, counts)
 
-    _, buf    = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    _, buf    = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 88])
     img_b64   = "data:image/jpeg;base64," + base64.b64encode(buf).decode()
 
     # Log to DB as a single-frame session
-    sid = start_session("image")
+    sid = start_session("custom_image")
     record_frame(sid, 1, 0.0, counts["Q1"], counts["Q2"], counts["Q3"], counts["Q4"])
     flush_all()
     end_session(sid)

@@ -1115,13 +1115,13 @@
       <!-- Controls under Viewport -->
       <input type="file" id="imgInput" accept="image/*,.jpg,.jpeg,.png,.webp,.bmp" style="display:none;" />
       <div class="image-controls-panel" id="imageControlBar">
-        <label class="upload-dropzone" id="uploadZone" for="imgInput">
+        <div class="upload-dropzone" id="uploadZone">
           <span style="font-size:1.4rem;">📤</span>
           <div>
             <div style="font-size:.82rem; font-weight:700;">Drop custom image here or click to browse</div>
             <div style="font-size:.70rem; color:var(--text2);">JPG, PNG, or WebP supported &bull; YOLOv8 instant inference (or press Ctrl+V to paste)</div>
           </div>
-        </label>
+        </div>
         <div style="display:flex; gap:8px;">
           <button class="q-btn" onclick="runSample('sample_1.jpg')">Sample 1</button>
           <button class="q-btn" onclick="runSample('sample_2.jpg')">Sample 2</button>
@@ -1627,83 +1627,80 @@ async function runSample(filename) {
   }
 }
 
-// Prevent browser from opening dropped files in new tab
-window.addEventListener('dragover', e => e.preventDefault());
-window.addEventListener('drop', e => e.preventDefault());
-
-function isImageFile(file) {
-  if (!file) return false;
-  if (file.type && file.type.startsWith('image/')) return true;
-  return /\.(jpe?g|png|webp|bmp|gif|tiff)$/i.test(file.name || '');
-}
-
 // Upload zone & Viewport drag-and-drop
 const uploadZone = $('uploadZone');
+const fileInput  = $('imgInput');
 const viewportCanvas = document.querySelector('.viewport-canvas');
 
-['dragenter', 'dragover'].forEach(ev => {
-  if (uploadZone) {
-    uploadZone.addEventListener(ev, e => {
-      e.preventDefault();
-      e.stopPropagation();
-      uploadZone.classList.add('over');
-    });
-  }
-  if (viewportCanvas) {
-    viewportCanvas.addEventListener(ev, e => {
-      e.preventDefault();
-      e.stopPropagation();
-      viewportCanvas.classList.add('over');
-    });
-  }
-});
-
-['dragleave', 'dragend'].forEach(ev => {
-  if (uploadZone) {
-    uploadZone.addEventListener(ev, e => {
-      e.preventDefault();
-      e.stopPropagation();
-      uploadZone.classList.remove('over');
-    });
-  }
-  if (viewportCanvas) {
-    viewportCanvas.addEventListener(ev, e => {
-      e.preventDefault();
-      e.stopPropagation();
-      viewportCanvas.classList.remove('over');
-    });
-  }
-});
-
-if (uploadZone) {
-  uploadZone.addEventListener('drop', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    uploadZone.classList.remove('over');
-    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-    if (file) handleUploadFile(file);
-  });
+// Click to browse file picker
+if (uploadZone && fileInput) {
+  uploadZone.addEventListener('click', () => fileInput.click());
 }
 
-if (viewportCanvas) {
-  viewportCanvas.addEventListener('drop', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    viewportCanvas.classList.remove('over');
-    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-    if (file) handleUploadFile(file);
-  });
-}
-
-const fileInput = $('imgInput');
 if (fileInput) {
   fileInput.addEventListener('change', function() {
-    if (this.files && this.files[0]) {
+    if (this.files && this.files.length > 0) {
       handleUploadFile(this.files[0]);
-      this.value = '';
     }
   });
 }
+
+// Drag & drop handlers
+function addDragListeners(el) {
+  if (!el) return;
+  el.addEventListener('dragenter', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    el.classList.add('over');
+  });
+  el.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    el.classList.add('over');
+  });
+  el.addEventListener('dragleave', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    el.classList.remove('over');
+  });
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    el.classList.remove('over');
+    const dt = e.dataTransfer;
+    let file = null;
+    if (dt && dt.files && dt.files.length > 0) {
+      file = dt.files[0];
+    } else if (dt && dt.items && dt.items.length > 0) {
+      const item = dt.items[0];
+      if (item.kind === 'file') file = item.getAsFile();
+    }
+    if (file) handleUploadFile(file);
+  });
+}
+
+addDragListeners(uploadZone);
+addDragListeners(viewportCanvas);
+
+// Global window fallback so dragging onto any section of the page works
+window.addEventListener('dragover', e => {
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+});
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  const dt = e.dataTransfer;
+  let file = null;
+  if (dt && dt.files && dt.files.length > 0) {
+    file = dt.files[0];
+  } else if (dt && dt.items && dt.items.length > 0) {
+    const item = dt.items[0];
+    if (item.kind === 'file') file = item.getAsFile();
+  }
+  if (file) handleUploadFile(file);
+});
 
 // Clipboard paste support (Ctrl+V)
 window.addEventListener('paste', e => {
@@ -1721,15 +1718,13 @@ window.addEventListener('paste', e => {
 });
 
 async function handleUploadFile(file) {
-  if (!isImageFile(file)) {
-    toast('Please select a valid image file (JPG, PNG, WebP)', 'error');
-    return;
-  }
+  if (!file) return;
   switchTab('image');
-  toast(`Uploading & inferring with YOLOv8 (${file.name || 'snapshot'})…`, 'info');
+  const fileName = file.name || 'custom_upload.jpg';
+  toast(`Uploading & analyzing ${fileName} with YOLOv8…`, 'info');
 
   const fd = new FormData();
-  fd.append('file', file);
+  fd.append('file', file, fileName);
 
   try {
     const res = await fetch('/api/detect_image', { method: 'POST', body: fd });
@@ -1738,10 +1733,12 @@ async function handleUploadFile(file) {
       toast(data.error || 'Detection failed', 'error');
       return;
     }
-    renderSnapshotResult(data, file.name || 'custom_upload.jpg');
+    renderSnapshotResult(data, fileName);
   } catch (err) {
     console.error('Upload error:', err);
     toast('Error uploading image to server', 'error');
+  } finally {
+    if (fileInput) fileInput.value = '';
   }
 }
 
@@ -1781,7 +1778,8 @@ function renderSnapshotResult(data, name) {
   donutChart.update();
 
   // 6. History line chart append
-  histLabels.push(name.replace('.jpg',''));
+  const labelClean = String(name).replace(/\.[^/.]+$/, '');
+  histLabels.push(labelClean);
   hD.Q1.push(data.quadrants.Q1);
   hD.Q2.push(data.quadrants.Q2);
   hD.Q3.push(data.quadrants.Q3);
@@ -1799,7 +1797,7 @@ function renderSnapshotResult(data, name) {
   }
 
   // 8. Log Row
-  addLogRow({ id: name, ...data.quadrants, total: data.total, fps: 'SNAP' });
+  addLogRow({ id: labelClean, ...data.quadrants, total: data.total, fps: 'SNAP' });
 
   // 9. Render Detected Persons List
   const detWrap = $('detListContainer');
