@@ -570,11 +570,21 @@
       cursor: pointer;
       transition: all var(--ease);
       background: rgba(255,255,255,0.015);
+      user-select: none;
     }
+
+    .upload-dropzone * { pointer-events: none; }
 
     .upload-dropzone:hover, .upload-dropzone.over {
       border-color: var(--purple);
-      background: rgba(139,92,246,0.08);
+      background: rgba(139,92,246,0.12);
+      box-shadow: 0 0 20px var(--purple-glow);
+    }
+
+    .viewport-canvas.over {
+      outline: 2px dashed var(--cyan);
+      outline-offset: -4px;
+      box-shadow: inset 0 0 50px rgba(6,182,212,0.25);
     }
 
     .upload-dropzone input { display: none; }
@@ -1028,6 +1038,9 @@
         <span>Sample 3</span>
         <span class="tag-badge">12 Students</span>
       </button>
+      <button class="q-btn" onclick="switchTab('image'); $('imgInput').click();">
+        <span>📤 Upload Custom Image</span>
+      </button>
     </div>
   </div>
 
@@ -1100,15 +1113,15 @@
       </div>
 
       <!-- Controls under Viewport -->
-      <div class="image-controls-panel" id="imageControlBar" style="display:none;">
-        <div class="upload-dropzone" id="uploadZone">
-          <input type="file" id="imgInput" accept="image/*" />
+      <input type="file" id="imgInput" accept="image/*,.jpg,.jpeg,.png,.webp,.bmp" style="display:none;" />
+      <div class="image-controls-panel" id="imageControlBar">
+        <label class="upload-dropzone" id="uploadZone" for="imgInput">
           <span style="font-size:1.4rem;">📤</span>
           <div>
             <div style="font-size:.82rem; font-weight:700;">Drop custom image here or click to browse</div>
-            <div style="font-size:.70rem; color:var(--text2);">JPG, PNG, or WebP supported &bull; YOLOv8 instant inference</div>
+            <div style="font-size:.70rem; color:var(--text2);">JPG, PNG, or WebP supported &bull; YOLOv8 instant inference (or press Ctrl+V to paste)</div>
           </div>
-        </div>
+        </label>
         <div style="display:flex; gap:8px;">
           <button class="q-btn" onclick="runSample('sample_1.jpg')">Sample 1</button>
           <button class="q-btn" onclick="runSample('sample_2.jpg')">Sample 2</button>
@@ -1564,7 +1577,7 @@ function switchTab(tab) {
   if (tab === 'live') {
     $('tabLive').classList.add('active');
     $('tabImage').classList.remove('active');
-    $('imageControlBar').style.display = 'none';
+    $('imageControlBar').style.display = 'flex';
 
     if ($('videoFeed').src && $('videoFeed').src.includes('/video_feed')) {
       $('videoFeed').style.display  = 'block';
@@ -1614,28 +1627,106 @@ async function runSample(filename) {
   }
 }
 
-// Upload zone handling
+// Prevent browser from opening dropped files in new tab
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => e.preventDefault());
+
+function isImageFile(file) {
+  if (!file) return false;
+  if (file.type && file.type.startsWith('image/')) return true;
+  return /\.(jpe?g|png|webp|bmp|gif|tiff)$/i.test(file.name || '');
+}
+
+// Upload zone & Viewport drag-and-drop
 const uploadZone = $('uploadZone');
-uploadZone.addEventListener('click', () => $('imgInput').click());
-uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('over'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('over'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadZone.classList.remove('over');
-  if (e.dataTransfer.files[0]) handleUploadFile(e.dataTransfer.files[0]);
+const viewportCanvas = document.querySelector('.viewport-canvas');
+
+['dragenter', 'dragover'].forEach(ev => {
+  if (uploadZone) {
+    uploadZone.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      uploadZone.classList.add('over');
+    });
+  }
+  if (viewportCanvas) {
+    viewportCanvas.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      viewportCanvas.classList.add('over');
+    });
+  }
 });
 
-$('imgInput').addEventListener('change', function() {
-  if (this.files[0]) handleUploadFile(this.files[0]);
+['dragleave', 'dragend'].forEach(ev => {
+  if (uploadZone) {
+    uploadZone.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      uploadZone.classList.remove('over');
+    });
+  }
+  if (viewportCanvas) {
+    viewportCanvas.addEventListener(ev, e => {
+      e.preventDefault();
+      e.stopPropagation();
+      viewportCanvas.classList.remove('over');
+    });
+  }
+});
+
+if (uploadZone) {
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadZone.classList.remove('over');
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) handleUploadFile(file);
+  });
+}
+
+if (viewportCanvas) {
+  viewportCanvas.addEventListener('drop', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    viewportCanvas.classList.remove('over');
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) handleUploadFile(file);
+  });
+}
+
+const fileInput = $('imgInput');
+if (fileInput) {
+  fileInput.addEventListener('change', function() {
+    if (this.files && this.files[0]) {
+      handleUploadFile(this.files[0]);
+      this.value = '';
+    }
+  });
+}
+
+// Clipboard paste support (Ctrl+V)
+window.addEventListener('paste', e => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type && items[i].type.indexOf('image') !== -1) {
+      const file = items[i].getAsFile();
+      if (file) {
+        handleUploadFile(file);
+        break;
+      }
+    }
+  }
 });
 
 async function handleUploadFile(file) {
-  if (!file.type.startsWith('image/')) {
-    toast('Please select a valid image file', 'error');
+  if (!isImageFile(file)) {
+    toast('Please select a valid image file (JPG, PNG, WebP)', 'error');
     return;
   }
   switchTab('image');
-  toast('Uploading & inferring with YOLOv8…', 'info');
+  toast(`Uploading & inferring with YOLOv8 (${file.name || 'snapshot'})…`, 'info');
 
   const fd = new FormData();
   fd.append('file', file);
@@ -1647,9 +1738,10 @@ async function handleUploadFile(file) {
       toast(data.error || 'Detection failed', 'error');
       return;
     }
-    renderSnapshotResult(data, file.name);
-  } catch {
-    toast('Error uploading image', 'error');
+    renderSnapshotResult(data, file.name || 'custom_upload.jpg');
+  } catch (err) {
+    console.error('Upload error:', err);
+    toast('Error uploading image to server', 'error');
   }
 }
 

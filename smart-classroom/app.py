@@ -465,7 +465,7 @@ def api_detect_image():
             "id"        : i + 1,
             "label"     : d["label"],
             "confidence": round(d["confidence"] * 100, 1),
-            "bbox"      : list(d["bbox"]),
+            "bbox"      : [int(x) for x in d["bbox"]],
             "quadrant"  : point_quadrant(frame, cx, cy),
         })
 
