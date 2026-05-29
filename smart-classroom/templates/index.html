@@ -3,24 +3,24 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Classroom AI — Real-Time Detection & Energy Automation</title>
-  <meta name="description" content="Real-time person detection, 4-quadrant analysis, and automated energy appliance control for smart classrooms" />
+  <title>Smart Classroom AI — Autonomous Monitoring &amp; Energy Management</title>
+  <meta name="description" content="Production-grade real-time computer vision system for classroom occupancy tracking, 4-quadrant density analysis, and automated energy appliance optimization" />
 
-  <!-- Typography -->
+  <!-- Typography: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-  <!-- Lightweight CDNs (<100KB total, no heavy synchronous bundles) -->
+  <!-- Lightweight, Lean Libraries (<80 KB Total) -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
   <style>
     /* ════════════════════════════════════════════════════════════
-       DESIGN TOKENS & THEMING
+       DESIGN TOKENS & SYSTEM THEME
     ════════════════════════════════════════════════════════════ */
     :root {
-      --bg          : #070b18;
-      --bg2         : #0c1022;
+      --bg          : #060914;
+      --bg2         : #0b0f20;
       --surface     : rgba(255,255,255,0.035);
       --surface2    : rgba(255,255,255,0.065);
       --border      : rgba(255,255,255,0.08);
@@ -59,15 +59,15 @@
       overflow-x : hidden;
     }
 
-    /* Ambient Background effects */
+    /* Ambient Spatial Backdrops */
     body::before {
       content : '';
       position: fixed;
       inset   : 0;
       background-image:
-        linear-gradient(rgba(139,92,246,.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(139,92,246,.025) 1px, transparent 1px);
-      background-size: 44px 44px;
+        linear-gradient(rgba(139,92,246,.022) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139,92,246,.022) 1px, transparent 1px);
+      background-size: 42px 42px;
       pointer-events : none;
       z-index        : 0;
     }
@@ -75,12 +75,12 @@
     body::after {
       content   : '';
       position  : fixed;
-      top       : -280px;
+      top       : -260px;
       left      : 50%;
       transform : translateX(-50%);
-      width     : 1000px;
+      width     : 1100px;
       height    : 520px;
-      background: radial-gradient(ellipse, rgba(139,92,246,.12) 0%, rgba(6,182,212,.05) 45%, transparent 70%);
+      background: radial-gradient(ellipse, rgba(139,92,246,.14) 0%, rgba(6,182,212,.05) 45%, transparent 70%);
       pointer-events: none;
       z-index   : 0;
     }
@@ -94,13 +94,13 @@
     }
 
     /* ════════════════════════════════════════════════════════════
-       HEADER
+       APP HEADER & SYSTEM HEALTH
     ════════════════════════════════════════════════════════════ */
     header {
       position  : sticky;
       top       : 0;
       z-index   : 200;
-      background: rgba(7,11,24,.92);
+      background: rgba(6,9,20,.92);
       backdrop-filter: blur(18px);
       -webkit-backdrop-filter: blur(18px);
       border-bottom: 1px solid var(--border);
@@ -120,20 +120,20 @@
     }
 
     .logo-mark {
-      width           : 42px;
-      height          : 42px;
+      width           : 44px;
+      height          : 44px;
       border-radius   : 12px;
       background      : linear-gradient(135deg, var(--purple) 0%, var(--cyan) 100%);
       display         : flex;
       align-items     : center;
       justify-content : center;
-      font-size       : 1.35rem;
+      font-size       : 1.4rem;
       box-shadow      : 0 0 24px var(--purple-glow);
       flex-shrink     : 0;
     }
 
-    .logo-text .logo-title {
-      font-size  : 1.12rem;
+    .logo-title {
+      font-size  : 1.15rem;
       font-weight: 800;
       letter-spacing: -.03em;
       background : linear-gradient(120deg, #fff 35%, var(--cyan) 95%);
@@ -142,7 +142,7 @@
       background-clip: text;
     }
 
-    .logo-text .logo-sub {
+    .logo-sub {
       font-size : .72rem;
       color     : var(--text2);
       font-weight: 500;
@@ -153,7 +153,6 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      flex-wrap: wrap;
     }
 
     .status-pill {
@@ -190,7 +189,7 @@
     }
 
     /* ════════════════════════════════════════════════════════════
-       QUICK ACTION & DATASET TESTING BAR
+       COMMAND BAR & 1-CLICK DATASETS
     ════════════════════════════════════════════════════════════ */
     .quickbar {
       background   : var(--surface);
@@ -239,6 +238,7 @@
       transition: all var(--ease);
       white-space: nowrap;
       text-decoration: none;
+      font-family: inherit;
     }
 
     .q-btn:hover {
@@ -275,10 +275,6 @@
       color: var(--red);
     }
 
-    .q-btn.danger:hover {
-      background: rgba(239,68,68,.25);
-    }
-
     .q-btn:disabled {
       opacity: .4;
       cursor: not-allowed;
@@ -293,12 +289,12 @@
       font-size: .68rem;
       font-weight: 700;
       font-family: 'JetBrains Mono', monospace;
-      background: rgba(0,0,0,0.3);
+      background: rgba(0,0,0,0.35);
       color: #fff;
     }
 
     /* ════════════════════════════════════════════════════════════
-       STATS ROW
+       KPI TELEMETRY ROW
     ════════════════════════════════════════════════════════════ */
     .stats-row {
       display              : grid;
@@ -314,7 +310,7 @@
       background   : var(--surface);
       border       : 1px solid var(--border);
       border-radius: var(--r-lg);
-      padding      : 20px 22px 16px;
+      padding      : 18px 20px 16px;
       position     : relative;
       overflow     : hidden;
       transition   : border-color var(--ease), transform var(--ease);
@@ -335,8 +331,8 @@
 
     .stat-card.c-fps     { --stripe: linear-gradient(90deg, var(--cyan), var(--blue)); }
     .stat-card.c-persons { --stripe: linear-gradient(90deg, var(--purple), var(--cyan)); }
-    .stat-card.c-frames  { --stripe: linear-gradient(90deg, var(--blue), var(--green)); }
-    .stat-card.c-status  { --stripe: linear-gradient(90deg, var(--green), var(--amber)); }
+    .stat-card.c-energy  { --stripe: linear-gradient(90deg, var(--green), var(--cyan)); }
+    .stat-card.c-status  { --stripe: linear-gradient(90deg, var(--amber), var(--purple)); }
 
     .st-hd {
       display: flex;
@@ -361,18 +357,24 @@
       letter-spacing: -.04em;
       color       : var(--white);
       font-variant-numeric: tabular-nums;
-      font-family : 'Inter', sans-serif;
     }
 
     .st-val.sm {
-      font-size: 1.3rem;
-      line-height: 1.3;
+      font-size: 1.25rem;
+      line-height: 1.35;
       font-weight: 700;
       font-family: 'JetBrains Mono', monospace;
     }
 
+    .st-sub {
+      font-size: .72rem;
+      color: var(--text2);
+      margin-top: 6px;
+      font-weight: 500;
+    }
+
     /* ════════════════════════════════════════════════════════════
-       MAIN GRID (UNIFIED MEDIA CARD + RIGHT TELEMETRY PANEL)
+       MAIN VIEWPORT & TELEMETRY STAGE
     ════════════════════════════════════════════════════════════ */
     .main-grid {
       display              : grid;
@@ -418,7 +420,7 @@
       border: 1px solid var(--border);
     }
 
-    /* ── Primary Viewport Card ── */
+    /* Primary Screen Viewport */
     .viewport-tabs {
       display: flex;
       border-bottom: 1px solid var(--border);
@@ -440,6 +442,7 @@
       justify-content: center;
       gap: 8px;
       transition: all var(--ease);
+      font-family: inherit;
     }
 
     .v-tab:hover {
@@ -455,18 +458,25 @@
 
     .viewport-canvas {
       position: relative;
-      background: #030611;
-      min-height: 440px;
+      background: #02050f;
+      min-height: 450px;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      transition: all var(--ease);
+    }
+
+    .viewport-canvas.over {
+      outline: 2px dashed var(--cyan);
+      outline-offset: -6px;
+      box-shadow: inset 0 0 60px rgba(6,182,212,0.25);
     }
 
     #videoFeed {
       width: 100%;
       height: 100%;
-      max-height: 560px;
+      max-height: 580px;
       object-fit: contain;
       display: none;
     }
@@ -474,7 +484,7 @@
     #resultImage {
       width: 100%;
       height: 100%;
-      max-height: 560px;
+      max-height: 580px;
       object-fit: contain;
       display: none;
     }
@@ -486,7 +496,7 @@
       justify-content: center;
       gap: 14px;
       color: var(--muted);
-      padding: 40px 20px;
+      padding: 50px 20px;
       text-align: center;
     }
 
@@ -503,7 +513,7 @@
 
     .no-feed-view p {
       font-size: .82rem;
-      max-width: 380px;
+      max-width: 420px;
       line-height: 1.5;
     }
 
@@ -526,7 +536,7 @@
       gap: 6px;
       padding: 5px 12px;
       border-radius: 8px;
-      background: rgba(7,11,24,0.85);
+      background: rgba(6,9,20,0.88);
       backdrop-filter: blur(8px);
       border: 1px solid rgba(255,255,255,0.15);
       font-size: .75rem;
@@ -538,15 +548,15 @@
 
     .hud-badge.live-indicator {
       color: var(--green);
-      border-color: rgba(16,185,129,0.4);
+      border-color: rgba(16,185,129,0.45);
     }
 
     .hud-badge.snapshot-indicator {
       color: var(--cyan);
-      border-color: rgba(6,182,212,0.4);
+      border-color: rgba(6,182,212,0.45);
     }
 
-    /* Image Drop / Controls area */
+    /* Image Drop / Controls Bar */
     .image-controls-panel {
       padding: 16px 20px;
       background: var(--bg2);
@@ -554,12 +564,13 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 14px;
       flex-wrap: wrap;
     }
 
     .upload-dropzone {
       flex: 1;
+      min-width: 280px;
       border: 2px dashed var(--border2);
       border-radius: var(--r);
       padding: 14px 18px;
@@ -581,16 +592,8 @@
       box-shadow: 0 0 20px var(--purple-glow);
     }
 
-    .viewport-canvas.over {
-      outline: 2px dashed var(--cyan);
-      outline-offset: -4px;
-      box-shadow: inset 0 0 50px rgba(6,182,212,0.25);
-    }
-
-    .upload-dropzone input { display: none; }
-
     /* ════════════════════════════════════════════════════════════
-       RIGHT PANEL (QUADRANTS, DONUT, AUTOMATED APPLIANCES)
+       RIGHT TELEMETRY PANEL
     ════════════════════════════════════════════════════════════ */
     .right-panel {
       display: flex;
@@ -598,7 +601,7 @@
       gap: 20px;
     }
 
-    /* Quadrant 2 × 2 Grid */
+    /* Quadrant 2 × 2 Spatial Grid */
     .q-grid {
       display              : grid;
       grid-template-columns: 1fr 1fr;
@@ -608,7 +611,7 @@
 
     .q-cell {
       background: var(--bg2);
-      padding   : 20px 16px 18px;
+      padding   : 18px 16px 16px;
       text-align: center;
       position  : relative;
       transition: background var(--ease);
@@ -636,7 +639,7 @@
     .q4 .q-chip { background:rgba(16,185,129,.2);  color:var(--green); }
 
     .q-num {
-      font-size     : 3.0rem;
+      font-size     : 2.85rem;
       font-weight   : 900;
       line-height   : 1;
       letter-spacing: -.05em;
@@ -654,30 +657,50 @@
     .q4 .q-num { color:var(--green); }
 
     .q-pos {
-      font-size:.70rem;
+      font-size:.68rem;
       color:var(--muted);
       margin-top:4px;
-      font-weight: 500;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.05em;
     }
 
-    /* Distribution Donut */
+    .q-meter {
+      height: 3px;
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    .q-fill {
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .q1 .q-fill { background: var(--purple); }
+    .q2 .q-fill { background: var(--blue); }
+    .q3 .q-fill { background: var(--cyan); }
+    .q4 .q-fill { background: var(--green); }
+
+    /* Quadrant Distribution Donut */
     .donut-wrap {
-      padding        : 16px;
+      padding        : 14px;
       display        : flex;
       justify-content: center;
       align-items    : center;
-      min-height     : 190px;
+      min-height     : 180px;
     }
 
     .donut-wrap canvas {
-      max-height: 180px;
-      max-width : 180px;
+      max-height: 170px;
+      max-width : 170px;
     }
 
     /* ════════════════════════════════════════════════════════════
-       AUTOMATED APPLIANCES PANEL (ENERGY LOGIC)
+       AUTOMATED APPLIANCES (SMART ENERGY MATRIX)
     ════════════════════════════════════════════════════════════ */
     .appliance-card {
       transition: all 0.3s ease;
@@ -702,7 +725,7 @@
 
     .appliance-box {
       background: var(--bg2);
-      padding: 18px 12px;
+      padding: 16px 12px;
       border-radius: var(--r);
       border: 1px solid var(--border);
       text-align: center;
@@ -787,7 +810,7 @@
     .mode-pill.high { background: rgba(245,158,11,0.18); color: var(--amber); border: 1px solid rgba(245,158,11,0.4); }
 
     /* ════════════════════════════════════════════════════════════
-       DETECTION LOG & DETAILS SECTION
+       DETECTION LOG & AUDITING SECTION
     ════════════════════════════════════════════════════════════ */
     .history-grid {
       display: grid;
@@ -842,9 +865,8 @@
     .tc-q4  { color: var(--green);  font-weight:700; }
     .tc-tot { color: var(--white);  font-weight:800; }
 
-    /* Detected Persons List (Snapshot deep dive) */
     .det-list-wrap {
-      max-height: 240px;
+      max-height: 250px;
       overflow-y: auto;
       padding: 12px 16px;
       display: flex;
@@ -856,7 +878,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 9px 14px;
+      padding: 8px 14px;
       background: var(--bg2);
       border-radius: var(--r);
       border: 1px solid var(--border);
@@ -900,7 +922,7 @@
     .det-quad.Q4 { background:rgba(16,185,129,.2);  color:var(--green); }
 
     /* ════════════════════════════════════════════════════════════
-       DATABASE ANALYTICS
+       24-HOUR DATABASE HISTORICAL ANALYTICS
     ════════════════════════════════════════════════════════════ */
     .db-stats-row {
       display: grid;
@@ -935,9 +957,7 @@
       color: var(--white);
     }
 
-    /* ════════════════════════════════════════════════════════════
-       TOAST NOTIFICATIONS
-    ════════════════════════════════════════════════════════════ */
+    /* Toast System */
     #toasts {
       position: fixed;
       bottom: 24px;
@@ -961,7 +981,7 @@
       backdrop-filter: blur(16px);
       box-shadow: 0 10px 30px rgba(0,0,0,.5);
       border: 1px solid var(--border2);
-      background: rgba(12,16,34,.95);
+      background: rgba(11,15,32,.95);
       color: var(--text);
       animation: slideInToast .25s cubic-bezier(0.16, 1, 0.3, 1);
       max-width: 440px;
@@ -976,7 +996,6 @@
     .toast.error   { border-color: rgba(239,68,68,.45);   color: #fca5a5; }
     .toast.info    { border-color: rgba(6,182,212,.45);   color: #67e8f9; }
 
-    /* Custom scrollbars */
     ::-webkit-scrollbar { width:6px; height:6px; }
     ::-webkit-scrollbar-track { background:transparent; }
     ::-webkit-scrollbar-thumb { background:var(--muted); border-radius:3px; }
@@ -990,9 +1009,9 @@
   <header>
     <div class="logo">
       <div class="logo-mark">🎓</div>
-      <div class="logo-text">
-        <div class="logo-title">Smart Classroom AI Dashboard</div>
-        <div class="logo-sub">Automated Human Detection, Quadrant Tracking &amp; Smart Energy Optimization</div>
+      <div>
+        <div class="logo-title">Smart Classroom AI Operations Center</div>
+        <div class="logo-sub">Autonomous Occupancy Tracking, 4-Quadrant Spatial Analysis &amp; Automated Energy Grid</div>
       </div>
     </div>
 
@@ -1004,13 +1023,12 @@
     </div>
   </header>
 
-  <!-- ─────────────────────── HERO QUICK ACTION BAR ─────────────────────── -->
+  <!-- ─────────────────────── COMMAND ACTION BAR ─────────────────────── -->
   <div class="quickbar">
     <div class="quickbar-label">
-      <span>⚡ Instant Actions:</span>
+      <span>⚡ Live Control:</span>
     </div>
     <div class="quickbar-group">
-      <!-- Live Video Actions -->
       <button class="q-btn primary" id="btnPlayDemo">
         <span>🎬 Start Classroom Demo Stream</span>
       </button>
@@ -1023,7 +1041,7 @@
     </div>
 
     <div class="quickbar-label" style="margin-left:auto;">
-      <span>🖼️ 1-Click Test Samples:</span>
+      <span>🖼️ 1-Click Test Datasets:</span>
     </div>
     <div class="quickbar-group">
       <button class="q-btn" onclick="runSample('sample_1.jpg')">
@@ -1038,67 +1056,72 @@
         <span>Sample 3</span>
         <span class="tag-badge">12 Students</span>
       </button>
-      <button class="q-btn" onclick="switchTab('image'); $('imgInput').click();">
-        <span>📤 Upload Custom Image</span>
+      <button class="q-btn" onclick="$('imgInput').click()">
+        <span>📤 Upload Image</span>
       </button>
     </div>
   </div>
 
-  <!-- ─────────────────────── STATS ROW ──────────────────── -->
+  <!-- ─────────────────────── KPI TELEMETRY ROW ──────────────────── -->
   <div class="stats-row">
     <div class="stat-card c-fps">
       <div class="st-hd">
-        <span class="st-label">Frames / Second</span>
+        <span class="st-label">Ingestion Rate</span>
         <span class="st-icon">⚡</span>
       </div>
       <div class="st-val" id="stFps">0.0</div>
+      <div class="st-sub">Frames / Second (Inference)</div>
     </div>
     <div class="stat-card c-persons">
       <div class="st-hd">
-        <span class="st-label">Occupancy (Persons)</span>
+        <span class="st-label">Active Attendance</span>
         <span class="st-icon">👥</span>
       </div>
       <div class="st-val" id="stPersons">0</div>
+      <div class="st-sub">Total Students Detected</div>
     </div>
-    <div class="stat-card c-frames">
+    <div class="stat-card c-energy">
       <div class="st-hd">
-        <span class="st-label">Processed Inferences</span>
-        <span class="st-icon">🎞️</span>
+        <span class="st-label">Energy Conservation</span>
+        <span class="st-icon">🌱</span>
       </div>
-      <div class="st-val" id="stFrames">0</div>
+      <div class="st-val" id="stWattsSaved" style="color:var(--green);">690W</div>
+      <div class="st-sub" id="stWattsPct">100% Load Saved vs Standard Max</div>
     </div>
     <div class="stat-card c-status">
       <div class="st-hd">
-        <span class="st-label">Ingestion Pipeline</span>
+        <span class="st-label">Pipeline Source</span>
         <span class="st-icon">📡</span>
       </div>
       <div class="st-val sm" id="stSource">IDLE</div>
+      <div class="st-sub" id="stFrameCounter">0 Inferences Processed</div>
     </div>
   </div>
 
-  <!-- ─────────────────────── MAIN INTERACTIVE GRID ──────────────────── -->
+  <!-- ─────────────────────── MAIN STAGE ──────────────────── -->
   <div class="main-grid">
 
-    <!-- Primary Viewport Card -->
+    <!-- Viewport Screen Card -->
     <div class="card">
       <div class="viewport-tabs">
         <button class="v-tab active" id="tabLive" onclick="switchTab('live')">
-          <span>🎥 Live Stream Viewport</span>
+          <span>🎥 Live Stream Viewport (MJPEG)</span>
         </button>
         <button class="v-tab" id="tabImage" onclick="switchTab('image')">
-          <span>📸 Image &amp; Snapshot Viewport</span>
+          <span>📸 Image &amp; Snapshot Analysis (YOLOv8)</span>
         </button>
       </div>
 
-      <!-- Canvas / Viewport Screen -->
       <div class="viewport-canvas">
         <div class="hud-overlay" id="hudOverlay" style="display:none;">
           <div class="hud-badge live-indicator" id="hudModeBadge">
             <span class="s-dot blink"></span>
             <span id="hudModeTxt">LIVE STREAM</span>
           </div>
-          <div class="hud-badge">
+          <div class="hud-badge" style="gap:10px;">
             <span id="hudOccupancy">👥 0 Students</span>
+            <span style="opacity:0.4;">|</span>
+            <span id="hudFpsBadge">⚡ 0.0 FPS</span>
           </div>
         </div>
 
@@ -1107,19 +1130,19 @@
 
         <div class="no-feed-view" id="noFeedView">
           <div class="nf-icon">🎥</div>
-          <h3>System Ready &amp; Listening</h3>
-          <p>Click <b>Start Classroom Demo Stream</b> or <b>Start Live Webcam</b> above, or pick one of the sample classroom snapshots to begin real-time analysis.</p>
+          <h3>Inference Pipeline Ready</h3>
+          <p>Click <b>Start Classroom Demo Stream</b> or <b>Start Live Webcam</b> above, choose a 1-click sample dataset, or drag &amp; drop any classroom image directly onto this canvas.</p>
         </div>
       </div>
 
-      <!-- Controls under Viewport -->
+      <!-- Quick Upload Dropzone -->
       <input type="file" id="imgInput" accept="image/*,.jpg,.jpeg,.png,.webp,.bmp" style="display:none;" />
       <div class="image-controls-panel" id="imageControlBar">
         <div class="upload-dropzone" id="uploadZone">
           <span style="font-size:1.4rem;">📤</span>
           <div>
-            <div style="font-size:.82rem; font-weight:700;">Drop custom image here or click to browse</div>
-            <div style="font-size:.70rem; color:var(--text2);">JPG, PNG, or WebP supported &bull; YOLOv8 instant inference (or press Ctrl+V to paste)</div>
+            <div style="font-size:.82rem; font-weight:700;">Drop classroom image here or click to browse</div>
+            <div style="font-size:.70rem; color:var(--text2);">JPG, PNG, WebP supported &bull; YOLOv8 edge inference (or press Ctrl+V to paste)</div>
           </div>
         </div>
         <div style="display:flex; gap:8px;">
@@ -1130,10 +1153,10 @@
       </div>
     </div>
 
-    <!-- Right Side Telemetry & Energy Matrix -->
+    <!-- Right Side Telemetry & Energy Grid -->
     <div class="right-panel">
 
-      <!-- Quadrant Breakdown -->
+      <!-- 4-Quadrant Spatial Breakdown -->
       <div class="card">
         <div class="card-hd">
           <span>4-Quadrant Spatial Breakdown</span>
@@ -1144,26 +1167,30 @@
             <div class="q-chip">Q1</div>
             <div class="q-num" id="qn1">0</div>
             <div class="q-pos">Top Left</div>
+            <div class="q-meter"><div class="q-fill" id="qf1"></div></div>
           </div>
           <div class="q-cell q2" id="qc2">
             <div class="q-chip">Q2</div>
             <div class="q-num" id="qn2">0</div>
             <div class="q-pos">Top Right</div>
+            <div class="q-meter"><div class="q-fill" id="qf2"></div></div>
           </div>
           <div class="q-cell q3" id="qc3">
             <div class="q-chip">Q3</div>
             <div class="q-num" id="qn3">0</div>
             <div class="q-pos">Bottom Left</div>
+            <div class="q-meter"><div class="q-fill" id="qf3"></div></div>
           </div>
           <div class="q-cell q4" id="qc4">
             <div class="q-chip">Q4</div>
             <div class="q-num" id="qn4">0</div>
             <div class="q-pos">Bottom Right</div>
+            <div class="q-meter"><div class="q-fill" id="qf4"></div></div>
           </div>
         </div>
       </div>
 
-      <!-- Quadrant Distribution Donut -->
+      <!-- Donut Ratio Chart -->
       <div class="card">
         <div class="card-hd">Quadrant Occupancy Ratio</div>
         <div class="donut-wrap">
@@ -1171,10 +1198,10 @@
         </div>
       </div>
 
-      <!-- Automated Appliances Matrix -->
+      <!-- Autonomous Appliances Matrix -->
       <div class="card appliance-card" id="appliancesCard">
         <div class="card-hd">
-          <span>Automated Appliances</span>
+          <span>Automated Appliance Grid</span>
           <span class="mode-pill eco" id="applianceModeBadge">ECO SAVING (0)</span>
         </div>
         <div class="appliance-grid">
@@ -1190,7 +1217,7 @@
           </div>
         </div>
         <div class="appliance-info-bar">
-          <span id="energyRuleText">🌱 0 Students &rarr; Standby Mode</span>
+          <span id="energyRuleText">🌱 0 Students &rarr; Standby Eco Mode</span>
           <span id="energyWattsBadge" style="font-size:.70rem; color:var(--green); font-family:'JetBrains Mono'; font-weight:700;">690W SAVED (100%)</span>
         </div>
       </div>
@@ -1198,13 +1225,13 @@
     </div><!-- /right-panel -->
   </div><!-- /main-grid -->
 
-  <!-- ─────────────────────── HISTORY & DETECTIONS ──────────────────── -->
+  <!-- ─────────────────────── HISTORY & OBJECT LOG ──────────────────── -->
   <div class="history-grid">
 
-    <!-- Real-time / Session History Chart -->
+    <!-- Telemetry History Chart -->
     <div class="card">
       <div class="card-hd">
-        <span>Person Count Telemetry History</span>
+        <span>Occupancy Telemetry Trend</span>
         <span class="badge" id="histLabel">Last 60 points</span>
       </div>
       <div class="chart-body">
@@ -1212,7 +1239,7 @@
       </div>
     </div>
 
-    <!-- Live Detection Log / Detected Objects -->
+    <!-- Detection Audit Log / Object Inspector -->
     <div class="card" id="logOrDetCard">
       <div class="card-hd">
         <span id="logTableTitle">Recent Detection Log</span>
@@ -1239,13 +1266,13 @@
 
   </div>
 
-  <!-- ─────────────────────── DATABASE HISTORICAL ANALYTICS ──────────────────── -->
+  <!-- ─────────────────────── HISTORICAL DATABASE ANALYTICS ──────────────────── -->
   <div class="card" style="margin-top:20px;">
     <div class="card-hd">
       <span>Historical Classroom Attendance (Past 24 Hours &bull; SQLite WAL)</span>
       <div style="display:flex; gap:8px; align-items:center;">
         <span class="badge" id="dbTotalFrames">0 frames logged</span>
-        <button class="q-btn" style="padding:4px 10px; font-size:.72rem;" onclick="window.location.href='/api/db/export_csv'">⬇ Export CSV</button>
+        <button class="q-btn" style="padding:4px 10px; font-size:.72rem;" onclick="window.location.href='/api/export/csv'">⬇ Export CSV</button>
         <button class="q-btn accent" style="padding:4px 10px; font-size:.72rem;" onclick="downloadDbChart()">⬇ Download Graph</button>
       </div>
     </div>
@@ -1276,13 +1303,13 @@
 
 </div><!-- /app -->
 
-<!-- Toast Notification container -->
+<!-- Toast notifications -->
 <div id="toasts"></div>
 
-<!-- ─────────────────────── ENGINE CLIENT SCRIPT ─────────────────────── -->
+<!-- ─────────────────────── CLIENT APPLICATION SCRIPT ─────────────────────── -->
 <script>
 /* ───────────────────────────────────────────────────────────
-   DOM Elements & State
+   DOM Helpers & Application State
 ─────────────────────────────────────────────────────────── */
 const $ = id => document.getElementById(id);
 const MAX_HIST  = 60;
@@ -1301,7 +1328,7 @@ let prevAppl    = { fans: null, lights: null };
 Chart.defaults.color       = '#94a3b8';
 Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
 
-// 1. History Line Chart
+// 1. History Trend Area Chart
 const histLabels = [];
 const hD = { Q1:[], Q2:[], Q3:[], Q4:[], total:[] };
 
@@ -1323,7 +1350,7 @@ const histChart = new Chart($('histChart').getContext('2d'), {
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { position:'bottom', labels:{ padding:14, usePointStyle:true, pointStyleWidth:12, font:{ size:11, family:'Inter' } } },
-      tooltip: { backgroundColor:'#0c1022', borderColor:'rgba(255,255,255,.12)', borderWidth:1, padding:10 }
+      tooltip: { backgroundColor:'#0b0f20', borderColor:'rgba(255,255,255,.12)', borderWidth:1, padding:10 }
     },
     scales: {
       x: { ticks:{ maxTicksLimit:10, font:{ size:10 } }, grid:{ color:'rgba(255,255,255,.04)' } },
@@ -1349,13 +1376,13 @@ const donutChart = new Chart($('donutChart').getContext('2d'), {
     responsive: true, cutout: '66%', maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-      tooltip: { backgroundColor:'#0c1022', borderColor:'rgba(255,255,255,.12)', borderWidth:1,
+      tooltip: { backgroundColor:'#0b0f20', borderColor:'rgba(255,255,255,.12)', borderWidth:1,
                  callbacks:{ label: c => ` ${c.label}: ${c.raw} students` } }
     }
   }
 });
 
-// 3. 24h Database Attendance Chart
+// 3. 24h SQLite WAL Attendance Chart
 const dbChart = new Chart($('dbChart').getContext('2d'), {
   type: 'bar',
   data: {
@@ -1370,7 +1397,7 @@ const dbChart = new Chart($('dbChart').getContext('2d'), {
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { position: 'bottom', labels: { usePointStyle: true, font: { family: 'Inter', size:11 } } },
-      tooltip: { backgroundColor:'#0c1022', borderColor:'rgba(255,255,255,.12)', borderWidth:1 }
+      tooltip: { backgroundColor:'#0b0f20', borderColor:'rgba(255,255,255,.12)', borderWidth:1 }
     },
     scales: {
       y: { beginAtZero:true, grid: { color:'rgba(255,255,255,.04)' }, ticks:{ font:{ family:'JetBrains Mono' } } },
@@ -1380,35 +1407,36 @@ const dbChart = new Chart($('dbChart').getContext('2d'), {
 });
 
 /* ───────────────────────────────────────────────────────────
-   Socket.IO Ingestion Pipeline
+   WebSocket Ingestion Pipeline
 ─────────────────────────────────────────────────────────── */
 const socket = io();
 
-socket.on('connect',    () => toast('Connected to AI Inference Service', 'success'));
-socket.on('disconnect', () => toast('Disconnected from AI Service', 'error'));
+socket.on('connect',    () => toast('Connected to AI Operations Pipeline', 'success'));
+socket.on('disconnect', () => toast('Pipeline Connection Lost', 'error'));
 
 socket.on('update', data => {
   const { frame, fps, Q1, Q2, Q3, Q4, total, appliances } = data;
   updateCtr++;
 
-  // Top stats
-  $('stFps').textContent     = fps.toFixed(1);
-  $('stPersons').textContent = total;
-  $('stFrames').textContent  = frame;
-  $('stSource').textContent  = 'STREAMING';
+  // Top KPIs
+  $('stFps').textContent          = fps.toFixed(1);
+  $('stPersons').textContent      = total;
+  $('stFrameCounter').textContent = `${frame.toLocaleString()} Inferences Processed`;
+  $('stSource').textContent       = 'STREAMING';
 
   // HUD
-  $('hudOverlay').style.display = 'flex';
-  $('hudOccupancy').textContent = `👥 ${total} Students`;
+  $('hudOverlay').style.display   = 'flex';
+  $('hudOccupancy').textContent   = `👥 ${total} Students`;
+  $('hudFpsBadge').textContent    = `⚡ ${fps.toFixed(1)} FPS`;
 
   // Appliances
   if (appliances) updateAppliances(appliances, total);
 
-  // Quadrant numbers
-  setQ('qn1','qc1','Q1', Q1);
-  setQ('qn2','qc2','Q2', Q2);
-  setQ('qn3','qc3','Q3', Q3);
-  setQ('qn4','qc4','Q4', Q4);
+  // Quadrant numbers & meters
+  setQ('qn1','qc1','qf1','Q1', Q1, total);
+  setQ('qn2','qc2','qf2','Q2', Q2, total);
+  setQ('qn3','qc3','qf3','Q3', Q3, total);
+  setQ('qn4','qc4','qf4','Q4', Q4, total);
   $('totalBadge').textContent = `Total: ${total}`;
 
   // Throttled Chart Updates
@@ -1429,7 +1457,7 @@ socket.on('update', data => {
 });
 
 socket.on('srv_notice', d => {
-  toast(d.message || 'Notice from server', 'info');
+  toast(d.message || 'Pipeline Notice', 'info');
 });
 
 socket.on('srv_stopped', () => {
@@ -1458,7 +1486,7 @@ socket.on('srv_error', d => {
 });
 
 /* ───────────────────────────────────────────────────────────
-   Appliance State Manager (Matrix Automation)
+   Autonomous Appliances Matrix
 ─────────────────────────────────────────────────────────── */
 function updateAppliances(appliances, total) {
   const fans = appliances.fans;
@@ -1474,7 +1502,7 @@ function updateAppliances(appliances, total) {
   const modeBadge = $('applianceModeBadge');
   const ruleTxt = $('energyRuleText');
 
-  // Spinning and glowing animations
+  // Spinning fan animation
   if (fans > 0) {
     fanBox.classList.add('active-fan');
     fanIcon.classList.add('spin-fan');
@@ -1483,6 +1511,7 @@ function updateAppliances(appliances, total) {
     fanIcon.classList.remove('spin-fan');
   }
 
+  // Glowing lightbulb animation
   if (lights > 0) {
     lightBox.classList.add('active-light');
     lightIcon.classList.add('glow-light');
@@ -1505,13 +1534,18 @@ function updateAppliances(appliances, total) {
     ruleTxt.textContent = '❄️ Full capacity: 6 Fans, 8 Lights active';
   }
 
-  if (appliances.saved_w !== undefined && $('energyWattsBadge')) {
+  // Wattage savings indicator
+  if (appliances.saved_w !== undefined) {
     const pct = appliances.savings_pct || 0;
-    $('energyWattsBadge').textContent = `${appliances.saved_w}W SAVED (${pct}%)`;
-    $('energyWattsBadge').style.color = pct > 0 ? 'var(--green)' : 'var(--amber)';
+    if ($('energyWattsBadge')) {
+      $('energyWattsBadge').textContent = `${appliances.saved_w}W SAVED (${pct}%)`;
+      $('energyWattsBadge').style.color = pct > 0 ? 'var(--green)' : 'var(--amber)';
+    }
+    if ($('stWattsSaved')) $('stWattsSaved').textContent = `${appliances.saved_w}W`;
+    if ($('stWattsPct'))   $('stWattsPct').textContent   = `${pct}% Load Saved (${appliances.load_w}W drawn)`;
   }
 
-  // Trigger visual pulse if values shifted
+  // Card glow pulse on threshold transition
   if (prevAppl.fans !== fans || prevAppl.lights !== lights) {
     prevAppl.fans = fans;
     prevAppl.lights = lights;
@@ -1521,23 +1555,23 @@ function updateAppliances(appliances, total) {
 }
 
 /* ───────────────────────────────────────────────────────────
-   Actions & Controls
+   Actions & REST Endpoint Pipeline
 ─────────────────────────────────────────────────────────── */
-$('btnPlayDemo').addEventListener('click', () => startDetection('demo'));
-$('btnStartWebcam').addEventListener('click', () => startDetection('webcam'));
-$('btnStopFeed').addEventListener('click', () => fetch('/api/stop', { method: 'POST' }));
+$('btnPlayDemo').addEventListener('click', () => startStream('demo'));
+$('btnStartWebcam').addEventListener('click', () => startStream('webcam'));
+$('btnStopFeed').addEventListener('click', () => fetch('/api/stream/stop', { method: 'POST' }));
 
-async function startDetection(sourceType) {
+async function startStream(sourceType) {
   switchTab('live');
   try {
-    const res = await fetch('/api/start', {
+    const res = await fetch('/api/stream/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source: sourceType })
     });
     const data = await res.json();
     if (!res.ok) {
-      toast(data.error || 'Failed to start detection', 'error');
+      toast(data.error || 'Failed to start stream', 'error');
       return;
     }
 
@@ -1580,12 +1614,12 @@ function switchTab(tab) {
     $('imageControlBar').style.display = 'flex';
 
     if ($('videoFeed').src && $('videoFeed').src.includes('/video_feed')) {
-      $('videoFeed').style.display  = 'block';
+      $('videoFeed').style.display   = 'block';
       $('resultImage').style.display = 'none';
       $('noFeedView').style.display  = 'none';
       $('hudOverlay').style.display  = 'flex';
     } else {
-      $('videoFeed').style.display  = 'none';
+      $('videoFeed').style.display   = 'none';
       $('resultImage').style.display = 'none';
       $('noFeedView').style.display  = 'flex';
       $('hudOverlay').style.display  = 'none';
@@ -1608,14 +1642,14 @@ function switchTab(tab) {
 }
 
 /* ───────────────────────────────────────────────────────────
-   1-Click Sample Image Inference & Custom Uploads
+   Sample Dataset Inference & Custom Image Upload
 ─────────────────────────────────────────────────────────── */
 async function runSample(filename) {
   switchTab('image');
   toast(`Running YOLO inference on ${filename}…`, 'info');
 
   try {
-    const res = await fetch(`/api/sample_image/${filename}`, { method: 'POST' });
+    const res = await fetch(`/api/samples/${filename}`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) {
       toast(data.error || 'Failed to analyze sample', 'error');
@@ -1628,8 +1662,8 @@ async function runSample(filename) {
 }
 
 // Upload zone & Viewport drag-and-drop
-const uploadZone = $('uploadZone');
-const fileInput  = $('imgInput');
+const uploadZone     = $('uploadZone');
+const fileInput      = $('imgInput');
 const viewportCanvas = document.querySelector('.viewport-canvas');
 
 // Click to browse file picker
@@ -1727,7 +1761,7 @@ async function handleUploadFile(file) {
   fd.append('file', file, fileName);
 
   try {
-    const res = await fetch('/api/detect_image', { method: 'POST', body: fd });
+    const res = await fetch('/api/detect/image', { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) {
       toast(data.error || 'Detection failed', 'error');
@@ -1756,19 +1790,20 @@ function renderSnapshotResult(data, name) {
   $('hudModeBadge').className   = 'hud-badge snapshot-indicator';
   $('hudModeTxt').textContent   = 'IMAGE SNAPSHOT';
   $('hudOccupancy').textContent = `👥 ${data.total} Students`;
+  $('hudFpsBadge').textContent  = '⚡ SNAPSHOT';
 
   // 3. Stats row
-  $('stPersons').textContent = data.total;
-  $('stFrames').textContent  = 1;
-  $('stSource').textContent  = 'IMAGE';
-  $('stFps').textContent     = '—';
+  $('stPersons').textContent      = data.total;
+  $('stFrameCounter').textContent = '1 Image Processed';
+  $('stSource').textContent       = 'IMAGE';
+  $('stFps').textContent          = '—';
   setStatus('image');
 
   // 4. Quadrants
-  setQ('qn1','qc1','Q1', data.quadrants.Q1);
-  setQ('qn2','qc2','Q2', data.quadrants.Q2);
-  setQ('qn3','qc3','Q3', data.quadrants.Q3);
-  setQ('qn4','qc4','Q4', data.quadrants.Q4);
+  setQ('qn1','qc1','qf1','Q1', data.quadrants.Q1, data.total);
+  setQ('qn2','qc2','qf2','Q2', data.quadrants.Q2, data.total);
+  setQ('qn3','qc3','qf3','Q3', data.quadrants.Q3, data.total);
+  setQ('qn4','qc4','qf4','Q4', data.quadrants.Q4, data.total);
   $('totalBadge').textContent = `Total: ${data.total}`;
 
   // 5. Donut chart
@@ -1777,7 +1812,7 @@ function renderSnapshotResult(data, name) {
   ];
   donutChart.update();
 
-  // 6. History line chart append
+  // 6. History trend append
   const labelClean = String(name).replace(/\.[^/.]+$/, '');
   histLabels.push(labelClean);
   hD.Q1.push(data.quadrants.Q1);
@@ -1820,7 +1855,7 @@ function renderSnapshotResult(data, name) {
   if (data.appliances) {
     setTimeout(() => {
       const wText = data.appliances.saved_w !== undefined ? ` (${data.appliances.load_w}W draw, ${data.appliances.saved_w}W saved)` : '';
-      toast(`Appliance Matrix: ${data.appliances.fans} Fans & ${data.appliances.lights} Lights active${wText}`, 'info');
+      toast(`Appliance Grid: ${data.appliances.fans} Fans & ${data.appliances.lights} Lights active${wText}`, 'info');
     }, 600);
   }
 
@@ -1849,7 +1884,7 @@ function addLogRow({ id, Q1, Q2, Q3, Q4, total, fps }) {
   $('logCountBadge').textContent = `${Math.min(logRowCtr, MAX_ROWS)} entries`;
 }
 
-function setQ(numId, cellId, key, val) {
+function setQ(numId, cellId, fillId, key, val, total) {
   if (prevQ[key] !== val) {
     prevQ[key] = val;
     const n = $(numId);
@@ -1862,6 +1897,11 @@ function setQ(numId, cellId, key, val) {
     c.classList.remove('flash');
     void c.offsetWidth;
     c.classList.add('flash');
+
+    if ($(fillId)) {
+      const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+      $(fillId).style.width = pct + '%';
+    }
   }
 }
 
@@ -1886,7 +1926,7 @@ function toast(msg, type = 'info') {
 ─────────────────────────────────────────────────────────── */
 async function fetchDbAnalytics() {
   try {
-    const res = await fetch('/api/db/analytics');
+    const res = await fetch('/api/analytics');
     const data = await res.json();
 
     if (data.analytics) {

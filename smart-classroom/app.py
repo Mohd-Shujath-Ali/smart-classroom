@@ -228,79 +228,10 @@ def mjpeg_stream():
         time.sleep(0.033)   # cap at ~30 fps pushed to client
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# ── Core Streaming Routes ─────────────────────────────────────────────────────
 @app.route("/")
 def index():
     return render_template("index.html")
-
-
-@app.route("/models/<path:filename>")
-def serve_model(filename):
-    """Serve ONNX model files statically for WebGPU / WASM browser inference."""
-    models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
-    resp = make_response(send_from_directory(models_dir, filename))
-    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-    resp.headers["Access-Control-Allow-Origin"] = "*"
-    return resp
-
-
-@app.route("/api/model_info")
-def api_model_info():
-    """Return model inference parameters for browser client engine."""
-    onnx_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "best.onnx")
-    return jsonify({
-        "model_name": "best.onnx",
-        "onnx_available": os.path.exists(onnx_path),
-        "input_shape": [1, 3, 640, 640],
-        "input_name": "images",
-        "output_name": "output0",
-        "classes": {0: "person"},
-        "conf_threshold": CONF_THRESHOLD,
-        "iou_threshold": 0.45,
-        "supported_backends": ["webgpu", "wasm"]
-    })
-
-
-# ── Client WebGPU Telemetry Sync ──────────────────────────────────────────────
-client_session_state = {"session_id": None}
-
-@app.route("/api/client_session/start", methods=["POST"])
-def api_client_session_start():
-    data = request.json or {}
-    source = data.get("source", "client_webgpu")
-    sid = start_session(source)
-    client_session_state["session_id"] = sid
-    return jsonify({"session_id": sid, "status": "started"})
-
-
-@app.route("/api/client_session/stop", methods=["POST"])
-def api_client_session_stop():
-    sid = client_session_state.get("session_id")
-    if sid:
-        flush_all()
-        end_session(sid)
-        client_session_state["session_id"] = None
-    return jsonify({"status": "stopped"})
-
-
-@app.route("/api/client_telemetry", methods=["POST"])
-def api_client_telemetry():
-    """Record telemetry pushed from in-browser WebGPU / WASM client."""
-    data = request.json or {}
-    sid = client_session_state.get("session_id")
-    if not sid:
-        sid = start_session("client_webgpu")
-        client_session_state["session_id"] = sid
-
-    frame_no = int(data.get("frame", 1))
-    fps = float(data.get("fps", 0.0))
-    q1 = int(data.get("Q1", 0))
-    q2 = int(data.get("Q2", 0))
-    q3 = int(data.get("Q3", 0))
-    q4 = int(data.get("Q4", 0))
-
-    record_frame(sid, frame_no, fps, q1, q2, q3, q4)
-    return jsonify({"status": "recorded", "session_id": sid})
 
 
 @app.route("/video_feed")
@@ -309,13 +240,15 @@ def video_feed():
                     mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
+# ── Stream Lifecycle Controls ─────────────────────────────────────────────────
+@app.route("/api/stream/start", methods=["POST"])
 @app.route("/api/start", methods=["POST"])
 def api_start():
     data        = request.json or {}
     source_type = data.get("source", "webcam")
 
     if state["running"]:
-        return jsonify({"error": "Detection already running"}), 400
+        return jsonify({"error": "Detection already running", "code": "ALREADY_RUNNING"}), 400
 
     if source_type == "webcam":
         source = CAMERA_INDEX
@@ -327,7 +260,7 @@ def api_start():
         else:
             source = path
     else:
-        return jsonify({"error": "Invalid source type"}), 400
+        return jsonify({"error": "Invalid source type", "code": "INVALID_SOURCE"}), 400
 
     # Reset
     session_id = start_session(source_type)
@@ -343,27 +276,44 @@ def api_start():
     })
     stop_event.clear()
     threading.Thread(target=detection_loop, args=(source,), daemon=True).start()
-    return jsonify({"status": "started", "source": source_type})
+    return jsonify({"success": True, "status": "started", "source": source_type, "session_id": session_id})
 
 
+@app.route("/api/stream/stop", methods=["POST"])
 @app.route("/api/stop", methods=["POST"])
 def api_stop():
     stop_event.set()
     state["running"] = False
-    return jsonify({"status": "stopped"})
+    return jsonify({"success": True, "status": "stopped"})
 
 
-@app.route("/api/sample_list")
+@app.route("/api/stream/status", methods=["GET"])
+@app.route("/api/status", methods=["GET"])
+def api_status():
+    s = {k: v for k, v in state.items() if k != "history"}
+    s["appliances"] = get_appliances_state(state.get("total_persons", 0))
+    return jsonify(s)
+
+
+@app.route("/api/history", methods=["GET"])
+def api_history():
+    return jsonify(state["history"])
+
+
+# ── Sample Datasets ───────────────────────────────────────────────────────────
+@app.route("/api/samples", methods=["GET"])
+@app.route("/api/sample_list", methods=["GET"])
 def api_sample_list():
     """Return available sample images for instant 1-click testing."""
     samples = [
-        {"id": "sample_1.jpg", "label": "Classroom View 1", "badge": "34 Students", "desc": "Mid-density seating"},
-        {"id": "sample_2.jpg", "label": "Classroom View 2", "badge": "56 Students", "desc": "Full lecture hall"},
+        {"id": "sample_1.jpg", "label": "Classroom View 1", "badge": "34 Students", "desc": "Mid-density lecture"},
+        {"id": "sample_2.jpg", "label": "Classroom View 2", "badge": "56 Students", "desc": "Full capacity hall"},
         {"id": "sample_3.jpg", "label": "Classroom View 3", "badge": "12 Students", "desc": "Seminar grouping"}
     ]
     return jsonify(samples)
 
 
+@app.route("/api/samples/<name>", methods=["GET", "POST"])
 @app.route("/api/sample_image/<name>", methods=["GET", "POST"])
 def api_sample_image(name):
     """Load and infer sample image directly without requiring file upload."""
@@ -372,11 +322,11 @@ def api_sample_image(name):
 
     img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inputs", name)
     if not os.path.exists(img_path):
-        return jsonify({"error": f"Sample image {name} not found"}), 404
+        return jsonify({"error": f"Sample dataset '{name}' not found"}), 404
 
     frame = cv2.imread(img_path)
     if frame is None:
-        return jsonify({"error": "Cannot read image file"}), 400
+        return jsonify({"error": "Cannot read sample image file"}), 400
 
     detections = detector.detect(frame)
     counts     = get_quadrant_counts(frame, detections)
@@ -397,7 +347,7 @@ def api_sample_image(name):
     state.update({
         "total_persons": total,
         "quadrants"    : counts,
-        "source_type"  : "image",
+        "source_type"  : "sample_image",
     })
 
     det_list = []
@@ -413,6 +363,7 @@ def api_sample_image(name):
         })
 
     return jsonify({
+        "success"        : True,
         "sample_name"    : name,
         "image"          : img_b64,
         "quadrants"      : counts,
@@ -423,6 +374,8 @@ def api_sample_image(name):
     })
 
 
+# ── Image Snapshot Inference ──────────────────────────────────────────────────
+@app.route("/api/detect/image", methods=["POST"])
 @app.route("/api/detect_image", methods=["POST"])
 def api_detect_image():
     if "file" not in request.files:
@@ -468,7 +421,7 @@ def api_detect_image():
     state.update({
         "total_persons": total,
         "quadrants"    : counts,
-        "source_type"  : "image",
+        "source_type"  : "custom_image",
     })
 
     det_list = []
@@ -484,6 +437,8 @@ def api_detect_image():
         })
 
     return jsonify({
+        "success"        : True,
+        "filename"       : file.filename,
         "image"          : img_b64,
         "quadrants"      : counts,
         "total"          : total,
@@ -493,31 +448,26 @@ def api_detect_image():
     })
 
 
-@app.route("/api/status")
-def api_status():
-    s = {k: v for k, v in state.items() if k != "history"}
-    return jsonify(s)
-
-
-@app.route("/api/history")
-def api_history():
-    return jsonify(state["history"])
-
-
-@app.route("/api/db/analytics")
+# ── Historical Analytics & Persistence ────────────────────────────────────────
+@app.route("/api/analytics", methods=["GET"])
+@app.route("/api/db/analytics", methods=["GET"])
 def api_db_analytics():
     return jsonify({
+        "success"  : True,
         "analytics": get_analytics(),
         "hourly"   : get_hourly_summary()
     })
 
-@app.route("/api/db/sessions")
+
+@app.route("/api/sessions", methods=["GET"])
+@app.route("/api/db/sessions", methods=["GET"])
 def api_db_sessions():
     limit = int(request.args.get("limit", 20))
     return jsonify(get_sessions(limit))
 
 
-@app.route("/api/db/export_csv")
+@app.route("/api/export/csv", methods=["GET"])
+@app.route("/api/db/export_csv", methods=["GET"])
 def api_db_export_csv():
     data = get_hourly_summary()
     si = StringIO()
@@ -526,7 +476,7 @@ def api_db_export_csv():
     for r in data:
         dt = datetime.datetime.fromtimestamp(r["hour_ts"]).strftime('%Y-%m-%d %H:%M:%S')
         cw.writerow([dt, r["avg_persons"], r["peak_persons"], r["frame_count"]])
-        
+
     output = make_response(si.getvalue())
     output.headers["Content-Disposition"] = "attachment; filename=classroom_hourly_stats.csv"
     output.headers["Content-type"] = "text/csv"
