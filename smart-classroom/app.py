@@ -72,15 +72,34 @@ def get_quadrant_counts(frame, detections):
     return counts
 
 def get_appliances_state(total):
-    """Energy-saving rules: decide fan/light count based on occupancy."""
+    """Energy-saving rules: decide fan/light count and calculate wattage savings."""
+    max_w = (6 * 75) + (8 * 30)  # 690W total ceiling
     if total == 0:
-        return {"fans": 0, "lights": 0, "mode": "ECO SAVING (0 Students)", "level": "off"}
+        fans, lights = 0, 0
+        mode, level = "ECO SAVING (0 Students)", "eco"
     elif total <= 10:
-        return {"fans": 2, "lights": 4, "mode": "LOW POWER (1-10 Students)", "level": "low"}
+        fans, lights = 2, 4
+        mode, level = "LOW POWER (1-10 Students)", "low"
     elif total < 20:
-        return {"fans": 4, "lights": 6, "mode": "MEDIUM POWER (11-19 Students)", "level": "med"}
+        fans, lights = 4, 6
+        mode, level = "MEDIUM POWER (11-19 Students)", "med"
     else:
-        return {"fans": 6, "lights": 8, "mode": "MAX POWER (20+ Students)", "level": "high"}
+        fans, lights = 6, 8
+        mode, level = "MAX POWER (20+ Students)", "high"
+
+    load_w = (fans * 75) + (lights * 30)
+    saved_w = max_w - load_w
+    savings_pct = round((saved_w / max_w) * 100, 1)
+
+    return {
+        "fans": fans,
+        "lights": lights,
+        "mode": mode,
+        "level": level,
+        "load_w": load_w,
+        "saved_w": saved_w,
+        "savings_pct": savings_pct
+    }
 
 
 def point_quadrant(frame, cx, cy):

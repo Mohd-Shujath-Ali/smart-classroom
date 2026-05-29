@@ -1178,7 +1178,7 @@
         </div>
         <div class="appliance-info-bar">
           <span id="energyRuleText">🌱 0 Students &rarr; Standby Mode</span>
-          <span style="font-size:.70rem; color:var(--muted); font-family:'JetBrains Mono';">SMART-LOGIC</span>
+          <span id="energyWattsBadge" style="font-size:.70rem; color:var(--green); font-family:'JetBrains Mono'; font-weight:700;">690W SAVED (100%)</span>
         </div>
       </div>
 
@@ -1492,6 +1492,12 @@ function updateAppliances(appliances, total) {
     ruleTxt.textContent = '❄️ Full capacity: 6 Fans, 8 Lights active';
   }
 
+  if (appliances.saved_w !== undefined && $('energyWattsBadge')) {
+    const pct = appliances.savings_pct || 0;
+    $('energyWattsBadge').textContent = `${appliances.saved_w}W SAVED (${pct}%)`;
+    $('energyWattsBadge').style.color = pct > 0 ? 'var(--green)' : 'var(--amber)';
+  }
+
   // Trigger visual pulse if values shifted
   if (prevAppl.fans !== fans || prevAppl.lights !== lights) {
     prevAppl.fans = fans;
@@ -1723,7 +1729,8 @@ function renderSnapshotResult(data, name) {
   toast(`Detected ${data.total} students in ${name}`, 'success');
   if (data.appliances) {
     setTimeout(() => {
-      toast(`Appliance Matrix: ${data.appliances.fans} Fans & ${data.appliances.lights} Lights active (${data.appliances.mode})`, 'info');
+      const wText = data.appliances.saved_w !== undefined ? ` (${data.appliances.load_w}W draw, ${data.appliances.saved_w}W saved)` : '';
+      toast(`Appliance Matrix: ${data.appliances.fans} Fans & ${data.appliances.lights} Lights active${wText}`, 'info');
     }, 600);
   }
 
