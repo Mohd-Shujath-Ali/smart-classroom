@@ -1885,6 +1885,11 @@ function addLogRow({ id, Q1, Q2, Q3, Q4, total, fps }) {
 }
 
 function setQ(numId, cellId, fillId, key, val, total) {
+  if ($(fillId)) {
+    const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+    $(fillId).style.width = pct + '%';
+  }
+
   if (prevQ[key] !== val) {
     prevQ[key] = val;
     const n = $(numId);
@@ -1897,11 +1902,6 @@ function setQ(numId, cellId, fillId, key, val, total) {
     c.classList.remove('flash');
     void c.offsetWidth;
     c.classList.add('flash');
-
-    if ($(fillId)) {
-      const pct = total > 0 ? Math.round((val / total) * 100) : 0;
-      $(fillId).style.width = pct + '%';
-    }
   }
 }
 
@@ -1954,6 +1954,60 @@ async function fetchDbAnalytics() {
   }
 }
 
+async function syncInitialStatus() {
+  try {
+    const res = await fetch('/api/stream/status');
+    if (!res.ok) return;
+    const s = await res.json();
+
+    const total = s.total_persons || 0;
+    const q = s.quadrants || { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+
+    $('stPersons').textContent = total;
+    $('stFps').textContent = s.fps ? Number(s.fps).toFixed(1) : '0.0';
+    $('totalBadge').textContent = `Total: ${total}`;
+
+    setQ('qn1', 'qc1', 'qf1', 'Q1', q.Q1 || 0, total);
+    setQ('qn2', 'qc2', 'qf2', 'Q2', q.Q2 || 0, total);
+    setQ('qn3', 'qc3', 'qf3', 'Q3', q.Q3 || 0, total);
+    setQ('qn4', 'qc4', 'qf4', 'Q4', q.Q4 || 0, total);
+
+    donutChart.data.datasets[0].data = [q.Q1 || 0, q.Q2 || 0, q.Q3 || 0, q.Q4 || 0];
+    donutChart.update('none');
+
+    if (s.appliances) {
+      updateAppliances(s.appliances, total);
+    }
+
+    if (s.running) {
+      setStatus('live');
+      $('btnPlayDemo').disabled   = true;
+      $('btnStartWebcam').disabled = true;
+      $('btnStopFeed').disabled    = false;
+      $('stSource').textContent    = 'STREAMING';
+      $('stFrameCounter').textContent = `${(s.frame_count || 0).toLocaleString()} Inferences Processed`;
+
+      $('noFeedView').style.display  = 'none';
+      $('resultImage').style.display = 'none';
+      const vf = $('videoFeed');
+      vf.src = '/video_feed?' + Date.now();
+      vf.style.display = 'block';
+
+      $('hudOverlay').style.display  = 'flex';
+      $('hudModeBadge').className    = 'hud-badge live-indicator';
+      $('hudModeTxt').textContent    = s.source_type === 'demo' ? 'DEMO STREAM' : 'LIVE WEBCAM';
+      $('hudOccupancy').textContent  = `👥 ${total} Students`;
+      $('hudFpsBadge').textContent   = `⚡ ${Number(s.fps || 0).toFixed(1)} FPS`;
+    } else if (s.source_type === 'sample_image' || s.source_type === 'custom_image') {
+      setStatus('image');
+      $('stSource').textContent = 'IMAGE';
+    }
+  } catch (e) {
+    console.warn('Initial status sync error:', e);
+  }
+}
+
+syncInitialStatus();
 fetchDbAnalytics();
 setInterval(fetchDbAnalytics, 6000);
 
