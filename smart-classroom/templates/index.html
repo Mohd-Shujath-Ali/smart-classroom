@@ -1243,7 +1243,11 @@
     <div class="card" id="logOrDetCard">
       <div class="card-hd">
         <span id="logTableTitle">Recent Detection Log</span>
-        <span class="badge" id="logCountBadge">0 entries</span>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button class="q-btn" id="btnViewLog" style="padding:3px 9px; font-size:.70rem;" onclick="setLogViewMode('log')">Stream Log</button>
+          <button class="q-btn" id="btnViewDet" style="padding:3px 9px; font-size:.70rem;" onclick="setLogViewMode('detections')">Objects</button>
+          <span class="badge" id="logCountBadge">0 entries</span>
+        </div>
       </div>
       <div class="table-scroll" id="logTableContainer">
         <table>
@@ -1418,6 +1422,12 @@ socket.on('update', data => {
   const { frame, fps, Q1, Q2, Q3, Q4, total, appliances } = data;
   updateCtr++;
 
+  // Log row stays in sync in background
+  addLogRow({ id: frame, Q1, Q2, Q3, Q4, total, fps });
+
+  // Do not overwrite snapshot HUD, KPIs, or quadrants while inspecting a static image
+  if (activeTab === 'image') return;
+
   // Top KPIs
   $('stFps').textContent          = fps.toFixed(1);
   $('stPersons').textContent      = total;
@@ -1451,9 +1461,6 @@ socket.on('update', data => {
     donutChart.data.datasets[0].data = [Q1, Q2, Q3, Q4];
     donutChart.update('none');
   }
-
-  // Log row
-  addLogRow({ id: frame, Q1, Q2, Q3, Q4, total, fps });
 });
 
 socket.on('srv_notice', d => {
@@ -1612,12 +1619,14 @@ function switchTab(tab) {
     $('tabLive').classList.add('active');
     $('tabImage').classList.remove('active');
     $('imageControlBar').style.display = 'flex';
+    setLogViewMode('log');
 
     if ($('videoFeed').src && $('videoFeed').src.includes('/video_feed')) {
       $('videoFeed').style.display   = 'block';
       $('resultImage').style.display = 'none';
       $('noFeedView').style.display  = 'none';
       $('hudOverlay').style.display  = 'flex';
+      setStatus('live');
     } else {
       $('videoFeed').style.display   = 'none';
       $('resultImage').style.display = 'none';
@@ -1633,11 +1642,38 @@ function switchTab(tab) {
       $('noFeedView').style.display  = 'none';
       $('videoFeed').style.display   = 'none';
       $('hudOverlay').style.display  = 'flex';
+      setLogViewMode('detections');
     } else {
       $('noFeedView').style.display  = 'flex';
       $('videoFeed').style.display   = 'none';
       $('hudOverlay').style.display  = 'none';
     }
+  }
+}
+
+function setLogViewMode(mode) {
+  const tableWrap = $('logTableContainer');
+  const detWrap   = $('detListContainer');
+  const titleEl   = $('logTableTitle');
+  const btnLog    = $('btnViewLog');
+  const btnDet    = $('btnViewDet');
+  if (!tableWrap || !detWrap) return;
+
+  if (mode === 'detections') {
+    tableWrap.style.display = 'none';
+    detWrap.style.display   = detWrap.children.length > 0 ? 'flex' : 'block';
+    titleEl.textContent     = 'Detected Persons Inspector';
+    if (btnDet) btnDet.classList.add('accent');
+    if (btnLog) btnLog.classList.remove('accent');
+    const count = detWrap.querySelectorAll('.det-item').length;
+    $('logCountBadge').textContent = `${count} detected`;
+  } else {
+    detWrap.style.display   = 'none';
+    tableWrap.style.display = 'block';
+    titleEl.textContent     = 'Recent Detection Log';
+    if (btnLog) btnLog.classList.add('accent');
+    if (btnDet) btnDet.classList.remove('accent');
+    $('logCountBadge').textContent = `${Math.min(logRowCtr, MAX_ROWS)} entries`;
   }
 }
 
@@ -1834,7 +1870,7 @@ function renderSnapshotResult(data, name) {
   // 8. Log Row
   addLogRow({ id: labelClean, ...data.quadrants, total: data.total, fps: 'SNAP' });
 
-  // 9. Render Detected Persons List
+  // 9. Render Detected Persons List & switch inspector view
   const detWrap = $('detListContainer');
   if (data.detections && data.detections.length > 0) {
     detWrap.innerHTML = data.detections.map(d => `
@@ -1845,11 +1881,10 @@ function renderSnapshotResult(data, name) {
         <span class="det-quad ${d.quadrant}">${d.quadrant}</span>
       </div>
     `).join('');
-    detWrap.style.display = 'flex';
   } else {
     detWrap.innerHTML = '<div style="color:var(--muted); text-align:center; padding:15px;">No students detected in this snapshot.</div>';
-    detWrap.style.display = 'block';
   }
+  setLogViewMode('detections');
 
   toast(`Detected ${data.total} students in ${name}`, 'success');
   if (data.appliances) {
@@ -1881,7 +1916,9 @@ function addLogRow({ id, Q1, Q2, Q3, Q4, total, fps }) {
   `;
   tbody.insertBefore(tr, tbody.firstChild);
   while (tbody.children.length > MAX_ROWS) tbody.removeChild(tbody.lastChild);
-  $('logCountBadge').textContent = `${Math.min(logRowCtr, MAX_ROWS)} entries`;
+  if ($('logTableContainer') && $('logTableContainer').style.display !== 'none') {
+    $('logCountBadge').textContent = `${Math.min(logRowCtr, MAX_ROWS)} entries`;
+  }
 }
 
 function setQ(numId, cellId, fillId, key, val, total) {
@@ -2007,6 +2044,7 @@ async function syncInitialStatus() {
   }
 }
 
+setLogViewMode('log');
 syncInitialStatus();
 fetchDbAnalytics();
 setInterval(fetchDbAnalytics, 6000);
