@@ -1044,15 +1044,15 @@
       <span>🖼️ 1-Click Test Datasets:</span>
     </div>
     <div class="quickbar-group">
-      <button class="q-btn" onclick="runSample('sample_1.jpg')">
+      <button class="q-btn" data-sample="sample_1.jpg" onclick="runSample('sample_1.jpg')">
         <span>Sample 1</span>
         <span class="tag-badge">34 Students</span>
       </button>
-      <button class="q-btn" onclick="runSample('sample_2.jpg')">
+      <button class="q-btn" data-sample="sample_2.jpg" onclick="runSample('sample_2.jpg')">
         <span>Sample 2</span>
         <span class="tag-badge">56 Students</span>
       </button>
-      <button class="q-btn" onclick="runSample('sample_3.jpg')">
+      <button class="q-btn" data-sample="sample_3.jpg" onclick="runSample('sample_3.jpg')">
         <span>Sample 3</span>
         <span class="tag-badge">12 Students</span>
       </button>
@@ -1146,9 +1146,9 @@
           </div>
         </div>
         <div style="display:flex; gap:8px;">
-          <button class="q-btn" onclick="runSample('sample_1.jpg')">Sample 1</button>
-          <button class="q-btn" onclick="runSample('sample_2.jpg')">Sample 2</button>
-          <button class="q-btn" onclick="runSample('sample_3.jpg')">Sample 3</button>
+          <button class="q-btn" data-sample="sample_1.jpg" onclick="runSample('sample_1.jpg')">Sample 1</button>
+          <button class="q-btn" data-sample="sample_2.jpg" onclick="runSample('sample_2.jpg')">Sample 2</button>
+          <button class="q-btn" data-sample="sample_3.jpg" onclick="runSample('sample_3.jpg')">Sample 3</button>
         </div>
       </div>
     </div>
@@ -1566,7 +1566,35 @@ function updateAppliances(appliances, total) {
 ─────────────────────────────────────────────────────────── */
 $('btnPlayDemo').addEventListener('click', () => startStream('demo'));
 $('btnStartWebcam').addEventListener('click', () => startStream('webcam'));
-$('btnStopFeed').addEventListener('click', () => fetch('/api/stream/stop', { method: 'POST' }));
+$('btnStopFeed').addEventListener('click', stopStream);
+
+async function stopStream() {
+  const stopBtn = $('btnStopFeed');
+  stopBtn.disabled = true;
+  try {
+    const res = await fetch('/api/stream/stop', { method: 'POST' });
+    if (!res.ok) {
+      toast('Failed to stop stream cleanly', 'error');
+      stopBtn.disabled = false;
+      return;
+    }
+    // Fallback UI reset in case socket event lags
+    setTimeout(() => {
+      if ($('btnPlayDemo').disabled) {
+        setStatus('stopped');
+        $('btnPlayDemo').disabled   = false;
+        $('btnStartWebcam').disabled = false;
+        $('videoFeed').style.display = 'none';
+        $('videoFeed').src           = '';
+        $('hudOverlay').style.display = 'none';
+        if (activeTab === 'live') $('noFeedView').style.display = 'flex';
+      }
+    }, 800);
+  } catch (err) {
+    toast('Error communicating with server', 'error');
+    stopBtn.disabled = false;
+  }
+}
 
 async function startStream(sourceType) {
   switchTab('live');
@@ -1680,8 +1708,17 @@ function setLogViewMode(mode) {
 /* ───────────────────────────────────────────────────────────
    Sample Dataset Inference & Custom Image Upload
 ─────────────────────────────────────────────────────────── */
+function setActiveSampleBtn(filename, loading = false) {
+  document.querySelectorAll('[data-sample]').forEach(btn => {
+    const match = btn.getAttribute('data-sample') === filename;
+    btn.classList.toggle('accent', match);
+    btn.disabled = loading;
+  });
+}
+
 async function runSample(filename) {
   switchTab('image');
+  setActiveSampleBtn(filename, true);
   toast(`Running YOLO inference on ${filename}…`, 'info');
 
   try {
@@ -1694,6 +1731,8 @@ async function runSample(filename) {
     renderSnapshotResult(data, filename);
   } catch (e) {
     toast('Inference request failed', 'error');
+  } finally {
+    setActiveSampleBtn(filename, false);
   }
 }
 
@@ -1790,6 +1829,7 @@ window.addEventListener('paste', e => {
 async function handleUploadFile(file) {
   if (!file) return;
   switchTab('image');
+  setActiveSampleBtn(null, false);
   const fileName = file.name || 'custom_upload.jpg';
   toast(`Uploading & analyzing ${fileName} with YOLOv8…`, 'info');
 
@@ -2052,10 +2092,19 @@ setInterval(fetchDbAnalytics, 6000);
 function downloadDbChart() {
   const canvas = $('dbChart');
   if (!canvas) return;
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width  = canvas.width;
+  exportCanvas.height = canvas.height;
+  const ctx = exportCanvas.getContext('2d');
+  ctx.fillStyle = '#0b0f20';
+  ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  ctx.drawImage(canvas, 0, 0);
+
   const link = document.createElement('a');
   link.download = 'classroom_historical_graph.png';
-  link.href = canvas.toDataURL('image/png');
+  link.href = exportCanvas.toDataURL('image/png');
   link.click();
+  toast('Downloaded historical attendance graph', 'success');
 }
 </script>
 </body>
