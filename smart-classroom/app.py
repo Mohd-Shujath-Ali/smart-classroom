@@ -452,10 +452,19 @@ def api_detect_image():
 @app.route("/api/analytics", methods=["GET"])
 @app.route("/api/db/analytics", methods=["GET"])
 def api_db_analytics():
+    analytics = get_analytics()
+    hourly = get_hourly_summary()
+
+    if hourly:
+        pcts = [get_appliances_state(round(h["avg_persons"]))["savings_pct"] for h in hourly]
+        analytics["efficiency_index"] = round(sum(pcts) / len(pcts), 1)
+    else:
+        analytics["efficiency_index"] = get_appliances_state(0)["savings_pct"]
+
     return jsonify({
         "success"  : True,
-        "analytics": get_analytics(),
-        "hourly"   : get_hourly_summary()
+        "analytics": analytics,
+        "hourly"   : hourly
     })
 
 

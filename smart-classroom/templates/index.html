@@ -1296,7 +1296,7 @@
       </div>
       <div class="db-stat-mini">
         <div class="db-lbl">Energy Efficiency Index</div>
-        <div class="db-num" style="color:var(--green);">94.8%</div>
+        <div class="db-num" id="dbEfficiency" style="color:var(--green);">—</div>
       </div>
     </div>
 
@@ -2011,6 +2011,10 @@ async function fetchDbAnalytics() {
       $('dbAvg').textContent         = data.analytics.overall_avg ? data.analytics.overall_avg.toFixed(1) : '0.0';
       $('dbSessions').textContent    = data.analytics.total_sessions || 0;
       $('dbTotalFrames').textContent = (data.analytics.total_frames || 0).toLocaleString() + ' frames logged';
+      if ($('dbEfficiency')) {
+        const eff = data.analytics.efficiency_index !== undefined ? data.analytics.efficiency_index : 0;
+        $('dbEfficiency').textContent = `${Number(eff).toFixed(1)}%`;
+      }
     }
 
     if (data.hourly && data.hourly.length > 0) {
