@@ -471,8 +471,18 @@ def api_db_analytics():
 @app.route("/api/sessions", methods=["GET"])
 @app.route("/api/db/sessions", methods=["GET"])
 def api_db_sessions():
-    limit = int(request.args.get("limit", 20))
+    limit = int(request.args.get("limit", 12))
     return jsonify(get_sessions(limit))
+
+
+@app.route("/api/sessions/<int:session_id>/timeline", methods=["GET"])
+def api_session_timeline(session_id):
+    frames = get_session_timeline(session_id)
+    return jsonify({
+        "success": True,
+        "session_id": session_id,
+        "frames": frames
+    })
 
 
 @app.route("/api/export/csv", methods=["GET"])
