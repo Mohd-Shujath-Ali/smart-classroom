@@ -292,7 +292,24 @@ def api_stop():
 def api_status():
     s = {k: v for k, v in state.items() if k != "history"}
     s["appliances"] = get_appliances_state(state.get("total_persons", 0))
+    s["conf_threshold"] = round(float(detector.conf), 2)
     return jsonify(s)
+
+
+@app.route("/api/config", methods=["GET", "POST"])
+def api_config():
+    if request.method == "POST":
+        data = request.json or {}
+        if "conf_threshold" in data:
+            try:
+                val = float(data["conf_threshold"])
+                detector.conf = max(0.10, min(0.90, round(val, 2)))
+            except (TypeError, ValueError):
+                return jsonify({"error": "Invalid confidence threshold"}), 400
+    return jsonify({
+        "success": True,
+        "conf_threshold": round(float(detector.conf), 2)
+    })
 
 
 @app.route("/api/history", methods=["GET"])
