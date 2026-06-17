@@ -48,6 +48,7 @@ state = {
     "total_persons": 0,
     "quadrants"    : {"Q1": 0, "Q2": 0, "Q3": 0, "Q4": 0},
     "history"      : [],          # rolling list of frame records
+    "appliance_override": {"manual": False, "fans": 0, "lights": 0},
 }
 
 output_frame  = None              # latest JPEG bytes for MJPEG stream
@@ -74,7 +75,12 @@ def get_quadrant_counts(frame, detections):
 def get_appliances_state(total):
     """Energy-saving rules: decide fan/light count and calculate wattage savings."""
     max_w = (6 * 75) + (8 * 30)  # 690W total ceiling
-    if total == 0:
+    ov = state.get("appliance_override", {})
+    if ov.get("manual"):
+        fans = max(0, min(6, int(ov.get("fans", 0))))
+        lights = max(0, min(8, int(ov.get("lights", 0))))
+        mode, level = f"MANUAL OVERRIDE ({fans}F / {lights}L)", "med"
+    elif total == 0:
         fans, lights = 0, 0
         mode, level = "ECO SAVING (0 Students)", "eco"
     elif total <= 10:
@@ -92,6 +98,7 @@ def get_appliances_state(total):
     savings_pct = round((saved_w / max_w) * 100, 1)
 
     return {
+        "manual": bool(ov.get("manual", False)),
         "fans": fans,
         "lights": lights,
         "mode": mode,
@@ -310,6 +317,22 @@ def api_config():
         "success": True,
         "conf_threshold": round(float(detector.conf), 2)
     })
+
+
+@app.route("/api/appliances/override", methods=["POST"])
+def api_appliances_override():
+    data = request.json or {}
+    manual = bool(data.get("manual", False))
+    current = get_appliances_state(state.get("total_persons", 0))
+    fans = int(data.get("fans", current["fans"]))
+    lights = int(data.get("lights", current["lights"]))
+    state["appliance_override"] = {
+        "manual": manual,
+        "fans": max(0, min(6, fans)),
+        "lights": max(0, min(8, lights)),
+    }
+    updated = get_appliances_state(state.get("total_persons", 0))
+    return jsonify({"success": True, "appliances": updated})
 
 
 @app.route("/api/history", methods=["GET"])
