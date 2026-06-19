@@ -1000,6 +1000,20 @@
     ::-webkit-scrollbar-track { background:transparent; }
     ::-webkit-scrollbar-thumb { background:var(--muted); border-radius:3px; }
     ::-webkit-scrollbar-thumb:hover { background:var(--text2); }
+
+    @media (max-width: 640px) {
+      .app { padding: 0 12px 36px; }
+      header { margin: 0 -12px 16px; padding: 12px; }
+      .header-right { width: 100%; justify-content: space-between; }
+      .quickbar { padding: 10px 12px; gap: 10px; }
+      .quickbar-group { width: 100%; }
+      .quickbar-group .q-btn { flex: 1 1 auto; justify-content: center; }
+      #customVideoPath { width: 100% !important; min-width: 0; }
+      .viewport-canvas { min-height: 280px; }
+      .card-hd { flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+      .hud-overlay { top: 8px; left: 8px; right: 8px; }
+      .hud-badge { font-size: .68rem; padding: 4px 8px; }
+    }
   </style>
 </head>
 <body>
