@@ -19,33 +19,35 @@
        DESIGN TOKENS & SYSTEM THEME
     ════════════════════════════════════════════════════════════ */
     :root {
-      --bg          : #060914;
-      --bg2         : #0b0f20;
-      --surface     : rgba(255,255,255,0.035);
-      --surface2    : rgba(255,255,255,0.065);
+      --bg          : #090b10;
+      --bg2         : #10141c;
+      --surface     : rgba(255,255,255,0.03);
+      --surface2    : rgba(255,255,255,0.06);
       --border      : rgba(255,255,255,0.08);
       --border2     : rgba(255,255,255,0.15);
 
-      --text        : #e2e8f0;
+      --text        : #edf2f7;
       --text2       : #94a3b8;
-      --muted       : #475569;
+      --muted       : #64748b;
 
-      --purple      : #8b5cf6;
-      --purple-glow : rgba(139,92,246,0.35);
+      --accent      : #38bdf8;
+      --accent-glow : rgba(56,189,248,0.22);
       --blue        : #3b82f6;
-      --blue-glow   : rgba(59,130,246,0.30);
-      --cyan        : #06b6d4;
-      --cyan-glow   : rgba(6,182,212,0.30);
+      --blue-dark   : #2563eb;
+      --blue-glow   : rgba(37,99,235,0.28);
+      --cyan        : #0ea5e9;
+      --cyan-glow   : rgba(14,165,233,0.25);
+      --teal        : #14b8a6;
       --green       : #10b981;
-      --green-glow  : rgba(16,185,129,0.30);
+      --green-glow  : rgba(16,185,129,0.25);
       --red         : #ef4444;
       --amber       : #f59e0b;
-      --amber-glow  : rgba(245,158,11,0.35);
+      --amber-glow  : rgba(245,158,11,0.28);
       --white       : #f8fafc;
 
-      --r           : 12px;
-      --r-lg        : 16px;
-      --ease        : 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      --r           : 10px;
+      --r-lg        : 14px;
+      --ease        : 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -65,9 +67,9 @@
       position: fixed;
       inset   : 0;
       background-image:
-        linear-gradient(rgba(139,92,246,.022) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(139,92,246,.022) 1px, transparent 1px);
-      background-size: 42px 42px;
+        linear-gradient(rgba(148,163,184,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148,163,184,.025) 1px, transparent 1px);
+      background-size: 44px 44px;
       pointer-events : none;
       z-index        : 0;
     }
@@ -79,8 +81,8 @@
       left      : 50%;
       transform : translateX(-50%);
       width     : 1100px;
-      height    : 520px;
-      background: radial-gradient(ellipse, rgba(139,92,246,.14) 0%, rgba(6,182,212,.05) 45%, transparent 70%);
+      height    : 500px;
+      background: radial-gradient(ellipse, rgba(37,99,235,.08) 0%, rgba(20,184,166,.03) 45%, transparent 70%);
       pointer-events: none;
       z-index   : 0;
     }
@@ -100,7 +102,7 @@
       position  : sticky;
       top       : 0;
       z-index   : 200;
-      background: rgba(6,9,20,.92);
+      background: rgba(9,11,16,.92);
       backdrop-filter: blur(18px);
       -webkit-backdrop-filter: blur(18px);
       border-bottom: 1px solid var(--border);
@@ -120,26 +122,24 @@
     }
 
     .logo-mark {
-      width           : 44px;
-      height          : 44px;
-      border-radius   : 12px;
-      background      : linear-gradient(135deg, var(--purple) 0%, var(--cyan) 100%);
+      width           : 42px;
+      height          : 42px;
+      border-radius   : 10px;
+      background      : linear-gradient(135deg, #1e293b 0%, var(--blue-dark) 100%);
+      border          : 1px solid rgba(56,189,248,.3);
       display         : flex;
       align-items     : center;
       justify-content : center;
-      font-size       : 1.4rem;
-      box-shadow      : 0 0 24px var(--purple-glow);
+      font-size       : 1.3rem;
+      box-shadow      : 0 4px 16px rgba(15,23,42,.5);
       flex-shrink     : 0;
     }
 
     .logo-title {
-      font-size  : 1.15rem;
-      font-weight: 800;
-      letter-spacing: -.03em;
-      background : linear-gradient(120deg, #fff 35%, var(--cyan) 95%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-size  : 1.12rem;
+      font-weight: 700;
+      letter-spacing: -.025em;
+      color      : var(--white);
     }
 
     .logo-sub {
@@ -248,14 +248,15 @@
     }
 
     .q-btn.primary {
-      background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 100%);
-      border: none;
+      background: linear-gradient(135deg, var(--blue-dark) 0%, #1d4ed8 100%);
+      border: 1px solid rgba(56,189,248,.25);
       color: #fff;
-      box-shadow: 0 4px 14px var(--purple-glow);
+      box-shadow: 0 2px 10px var(--blue-glow);
     }
 
     .q-btn.primary:hover {
-      box-shadow: 0 6px 20px rgba(139,92,246,.5);
+      background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
+      box-shadow: 0 4px 16px rgba(37,99,235,.42);
     }
 
     .q-btn.accent {
@@ -325,14 +326,14 @@
       content  : '';
       position : absolute;
       top      : 0; left: 0; right: 0;
-      height   : 3px;
-      background: var(--stripe, linear-gradient(90deg, var(--purple), var(--blue)));
+      height   : 2px;
+      background: var(--stripe, linear-gradient(90deg, var(--blue), var(--accent)));
     }
 
-    .stat-card.c-fps     { --stripe: linear-gradient(90deg, var(--cyan), var(--blue)); }
-    .stat-card.c-persons { --stripe: linear-gradient(90deg, var(--purple), var(--cyan)); }
-    .stat-card.c-energy  { --stripe: linear-gradient(90deg, var(--green), var(--cyan)); }
-    .stat-card.c-status  { --stripe: linear-gradient(90deg, var(--amber), var(--purple)); }
+    .stat-card.c-fps     { --stripe: linear-gradient(90deg, var(--accent), var(--blue)); }
+    .stat-card.c-persons { --stripe: linear-gradient(90deg, var(--blue), var(--teal)); }
+    .stat-card.c-energy  { --stripe: linear-gradient(90deg, var(--green), var(--teal)); }
+    .stat-card.c-status  { --stripe: linear-gradient(90deg, var(--amber), var(--accent)); }
 
     .st-hd {
       display: flex;
@@ -587,9 +588,9 @@
     .upload-dropzone * { pointer-events: none; }
 
     .upload-dropzone:hover, .upload-dropzone.over {
-      border-color: var(--purple);
-      background: rgba(139,92,246,0.12);
-      box-shadow: 0 0 20px var(--purple-glow);
+      border-color: var(--accent);
+      background: rgba(56,189,248,0.08);
+      box-shadow: 0 0 18px var(--accent-glow);
     }
 
     /* ════════════════════════════════════════════════════════════
@@ -633,10 +634,10 @@
       margin-bottom: 6px;
     }
 
-    .q1 .q-chip { background:rgba(139,92,246,.2); color:var(--purple); }
-    .q2 .q-chip { background:rgba(59,130,246,.2);  color:var(--blue); }
-    .q3 .q-chip { background:rgba(6,182,212,.2);   color:var(--cyan); }
-    .q4 .q-chip { background:rgba(16,185,129,.2);  color:var(--green); }
+    .q1 .q-chip { background:rgba(59,130,246,.18); color:var(--blue); }
+    .q2 .q-chip { background:rgba(14,165,233,.18); color:var(--cyan); }
+    .q3 .q-chip { background:rgba(20,184,166,.18); color:var(--teal); }
+    .q4 .q-chip { background:rgba(245,158,11,.18); color:var(--amber); }
 
     .q-num {
       font-size     : 2.85rem;
@@ -651,10 +652,10 @@
     .q-num.bump { animation: bumpVal .22s ease; }
     @keyframes bumpVal { 50% { transform:scale(1.22); } }
 
-    .q1 .q-num { color:var(--purple); }
-    .q2 .q-num { color:var(--blue); }
-    .q3 .q-num { color:var(--cyan); }
-    .q4 .q-num { color:var(--green); }
+    .q1 .q-num { color:var(--blue); }
+    .q2 .q-num { color:var(--cyan); }
+    .q3 .q-num { color:var(--teal); }
+    .q4 .q-num { color:var(--amber); }
 
     .q-pos {
       font-size:.68rem;
@@ -680,10 +681,10 @@
       transition: width 0.3s ease;
     }
 
-    .q1 .q-fill { background: var(--purple); }
-    .q2 .q-fill { background: var(--blue); }
-    .q3 .q-fill { background: var(--cyan); }
-    .q4 .q-fill { background: var(--green); }
+    .q1 .q-fill { background: var(--blue); }
+    .q2 .q-fill { background: var(--cyan); }
+    .q3 .q-fill { background: var(--teal); }
+    .q4 .q-fill { background: var(--amber); }
 
     /* Quadrant Distribution Donut */
     .donut-wrap {
@@ -859,11 +860,11 @@
 
     tbody tr:hover { background: rgba(255,255,255,.03); }
 
-    .tc-q1  { color: var(--purple); font-weight:700; }
-    .tc-q2  { color: var(--blue);   font-weight:700; }
-    .tc-q3  { color: var(--cyan);   font-weight:700; }
-    .tc-q4  { color: var(--green);  font-weight:700; }
-    .tc-tot { color: var(--white);  font-weight:800; }
+    .tc-q1  { color: var(--blue);  font-weight:700; }
+    .tc-q2  { color: var(--cyan);  font-weight:700; }
+    .tc-q3  { color: var(--teal);  font-weight:700; }
+    .tc-q4  { color: var(--amber); font-weight:700; }
+    .tc-tot { color: var(--white); font-weight:800; }
 
     .det-list-wrap {
       max-height: 250px;
@@ -889,7 +890,7 @@
       width: 24px;
       height: 24px;
       border-radius: 6px;
-      background: var(--purple);
+      background: var(--blue-dark);
       color: #fff;
       display: flex;
       align-items: center;
@@ -916,10 +917,10 @@
       border-radius: 6px;
     }
 
-    .det-quad.Q1 { background:rgba(139,92,246,.2); color:var(--purple); }
-    .det-quad.Q2 { background:rgba(59,130,246,.2);  color:var(--blue); }
-    .det-quad.Q3 { background:rgba(6,182,212,.2);   color:var(--cyan); }
-    .det-quad.Q4 { background:rgba(16,185,129,.2);  color:var(--green); }
+    .det-quad.Q1 { background:rgba(59,130,246,.18); color:var(--blue); }
+    .det-quad.Q2 { background:rgba(14,165,233,.18); color:var(--cyan); }
+    .det-quad.Q3 { background:rgba(20,184,166,.18); color:var(--teal); }
+    .det-quad.Q4 { background:rgba(245,158,11,.18); color:var(--amber); }
 
     /* ════════════════════════════════════════════════════════════
        24-HOUR DATABASE HISTORICAL ANALYTICS
@@ -981,7 +982,7 @@
       backdrop-filter: blur(16px);
       box-shadow: 0 10px 30px rgba(0,0,0,.5);
       border: 1px solid var(--border2);
-      background: rgba(11,15,32,.95);
+      background: rgba(16,20,28,.96);
       color: var(--text);
       animation: slideInToast .25s cubic-bezier(0.16, 1, 0.3, 1);
       max-width: 440px;
@@ -1397,10 +1398,10 @@ const histChart = new Chart($('histChart').getContext('2d'), {
   data: {
     labels  : histLabels,
     datasets: [
-      { label:'Q1 (TL)', data:hD.Q1, borderColor:'#8b5cf6', backgroundColor:'rgba(139,92,246,.12)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
-      { label:'Q2 (TR)', data:hD.Q2, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.08)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
-      { label:'Q3 (BL)', data:hD.Q3, borderColor:'#06b6d4', backgroundColor:'rgba(6,182,212,.08)',  fill:true, tension:.38, borderWidth:2, pointRadius:0 },
-      { label:'Q4 (BR)', data:hD.Q4, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.08)',fill:true, tension:.38, borderWidth:2, pointRadius:0 },
+      { label:'Q1 (TL)', data:hD.Q1, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.12)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
+      { label:'Q2 (TR)', data:hD.Q2, borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,.09)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
+      { label:'Q3 (BL)', data:hD.Q3, borderColor:'#14b8a6', backgroundColor:'rgba(20,184,166,.09)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
+      { label:'Q4 (BR)', data:hD.Q4, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
       { label:'Total',   data:hD.total, borderColor:'#f8fafc', fill:false, tension:.38, borderWidth:1.6, pointRadius:0, borderDash:[5,3] },
     ]
   },
@@ -1410,7 +1411,7 @@ const histChart = new Chart($('histChart').getContext('2d'), {
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { position:'bottom', labels:{ padding:14, usePointStyle:true, pointStyleWidth:12, font:{ size:11, family:'Inter' } } },
-      tooltip: { backgroundColor:'#0b0f20', borderColor:'rgba(255,255,255,.12)', borderWidth:1, padding:10 }
+      tooltip: { backgroundColor:'#10141c', borderColor:'rgba(255,255,255,.12)', borderWidth:1, padding:10 }
     },
     scales: {
       x: { ticks:{ maxTicksLimit:10, font:{ size:10 } }, grid:{ color:'rgba(255,255,255,.04)' } },
@@ -1426,8 +1427,8 @@ const donutChart = new Chart($('donutChart').getContext('2d'), {
     labels  : ['Q1 Top-Left','Q2 Top-Right','Q3 Bottom-Left','Q4 Bottom-Right'],
     datasets: [{
       data           : [0, 0, 0, 0],
-      backgroundColor: ['rgba(139,92,246,.75)','rgba(59,130,246,.75)','rgba(6,182,212,.75)','rgba(16,185,129,.75)'],
-      borderColor    : ['#8b5cf6','#3b82f6','#06b6d4','#10b981'],
+      backgroundColor: ['rgba(59,130,246,.78)','rgba(14,165,233,.78)','rgba(20,184,166,.78)','rgba(245,158,11,.78)'],
+      borderColor    : ['#3b82f6','#0ea5e9','#14b8a6','#f59e0b'],
       borderWidth    : 1.5,
       hoverOffset    : 6,
     }]
@@ -1436,7 +1437,7 @@ const donutChart = new Chart($('donutChart').getContext('2d'), {
     responsive: true, cutout: '66%', maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-      tooltip: { backgroundColor:'#0b0f20', borderColor:'rgba(255,255,255,.12)', borderWidth:1,
+      tooltip: { backgroundColor:'#10141c', borderColor:'rgba(255,255,255,.12)', borderWidth:1,
                  callbacks:{ label: c => ` ${c.label}: ${c.raw} students` } }
     }
   }
@@ -1448,7 +1449,7 @@ const dbChart = new Chart($('dbChart').getContext('2d'), {
   data: {
     labels: [],
     datasets: [
-      { label: 'Peak Occupancy', data: [], backgroundColor: 'rgba(139,92,246,.85)', borderRadius: 5 },
+      { label: 'Peak Occupancy', data: [], backgroundColor: 'rgba(59,130,246,.82)', borderRadius: 5 },
       { label: 'Average Occupancy', data: [], type: 'line', borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.15)', fill: true, tension: 0.4, borderWidth: 2 }
     ]
   },
@@ -1457,7 +1458,7 @@ const dbChart = new Chart($('dbChart').getContext('2d'), {
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { position: 'bottom', labels: { usePointStyle: true, font: { family: 'Inter', size:11 } } },
-      tooltip: { backgroundColor:'#0b0f20', borderColor:'rgba(255,255,255,.12)', borderWidth:1 }
+      tooltip: { backgroundColor:'#10141c', borderColor:'rgba(255,255,255,.12)', borderWidth:1 }
     },
     scales: {
       y: { beginAtZero:true, grid: { color:'rgba(255,255,255,.04)' }, ticks:{ font:{ family:'JetBrains Mono' } } },
@@ -2315,7 +2316,7 @@ function downloadDbChart() {
   exportCanvas.width  = canvas.width;
   exportCanvas.height = canvas.height;
   const ctx = exportCanvas.getContext('2d');
-  ctx.fillStyle = '#0b0f20';
+  ctx.fillStyle = '#10141c';
   ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
   ctx.drawImage(canvas, 0, 0);
 
