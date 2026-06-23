@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-color-mode="auto" data-dark-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -16,38 +16,70 @@
 
   <style>
     /* ════════════════════════════════════════════════════════════
-       DESIGN TOKENS & SYSTEM THEME
+       GITHUB PRIMER DARK THEME TOKENS
     ════════════════════════════════════════════════════════════ */
     :root {
-      --bg          : #090b10;
-      --bg2         : #10141c;
-      --surface     : rgba(255,255,255,0.03);
-      --surface2    : rgba(255,255,255,0.06);
-      --border      : rgba(255,255,255,0.08);
-      --border2     : rgba(255,255,255,0.15);
+      --bgColor-default  : #0d1117;
+      --bgColor-muted    : #161b22;
+      --bgColor-inset    : #010409;
+      --fgColor-default  : #e6edf3;
+      --fgColor-muted    : #8b949e;
+      --fgColor-attention: #d29922;
+      --fgColor-white    : #ffffff;
+      --borderColor-default: #30363d;
+      --borderColor-muted  : #21262d;
 
-      --text        : #edf2f7;
-      --text2       : #94a3b8;
-      --muted       : #64748b;
+      --bg          : var(--bgColor-default);
+      --bg2         : var(--bgColor-muted);
+      --surface     : var(--bgColor-muted);
+      --surface2    : #21262d;
+      --border      : #30363d;
+      --border2     : #3d444d;
 
-      --accent      : #38bdf8;
-      --accent-glow : rgba(56,189,248,0.22);
-      --blue        : #3b82f6;
-      --blue-dark   : #2563eb;
-      --blue-glow   : rgba(37,99,235,0.28);
-      --cyan        : #0ea5e9;
-      --cyan-glow   : rgba(14,165,233,0.25);
-      --teal        : #14b8a6;
-      --green       : #10b981;
-      --green-glow  : rgba(16,185,129,0.25);
-      --red         : #ef4444;
-      --amber       : #f59e0b;
-      --amber-glow  : rgba(245,158,11,0.28);
-      --white       : #f8fafc;
+      --text        : #e6edf3;
+      --text2       : #8b949e;
+      --muted       : #6e7681;
 
-      --r           : 10px;
-      --r-lg        : 14px;
-      --ease        : 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      --accent      : #79c0ff;
+      --accent-glow : rgba(121,192,255,0.18);
+      --blue        : #58a6ff;
+      --blue-dark   : #1f6feb;
+      --blue-glow   : rgba(31,111,235,0.25);
+      --cyan        : #79c0ff;
+      --cyan-glow   : rgba(121,192,255,0.2);
+      --teal        : #3fb950;
+      --green       : #3fb950;
+      --green-btn   : #238636;
+      --green-btn-hv: #2ea043;
+      --green-glow  : rgba(63,185,80,0.22);
+      --red         : #f85149;
+      --amber       : #d29922;
+      --amber-glow  : rgba(210,153,34,0.22);
+      --white       : #ffffff;
+
+      --r           : 6px;
+      --r-lg        : 8px;
+      --ease        : 0.16s cubic-bezier(0.3, 0, 0.5, 1);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      [data-color-mode=auto][data-dark-theme*=dark] {
+        --color-workflow-card-bg: var(--bgColor-muted);
+        --color-workflow-card-header-shadow: #1b1f230a;
+        --color-bg-discussions-row-emoji-box: #57606a;
+        --color-notifications-row-read-bg: var(--bgColor-default);
+        --color-notifications-row-bg: var(--bgColor-muted);
+        --color-user-mention-fg: var(--fgColor-attention);
+        --color-mktg-btn-shadow-outline: #ffffff40 0 0 0 1px inset;
+        --color-marketing-icon-primary: #79c0ff;
+        --color-marketing-icon-secondary: #1f6feb;
+        --color-project-header-bg: #0d1117;
+        --color-project-sidebar-bg: #161b22;
+        --color-project-gradient-in: #161b22;
+        --color-project-gradient-out: #161b2200;
+        --color-diff-blob-selected-line-highlight-mix-blend-mode: screen;
+        --color-text-white: var(--fgColor-white);
+      }
     }
 
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -61,30 +93,10 @@
       overflow-x : hidden;
     }
 
-    /* Ambient Spatial Backdrops */
-    body::before {
-      content : '';
-      position: fixed;
-      inset   : 0;
-      background-image:
-        linear-gradient(rgba(148,163,184,.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(148,163,184,.025) 1px, transparent 1px);
-      background-size: 44px 44px;
-      pointer-events : none;
-      z-index        : 0;
-    }
-
+    /* Clean GitHub Dark Primer Canvas */
+    body::before,
     body::after {
-      content   : '';
-      position  : fixed;
-      top       : -260px;
-      left      : 50%;
-      transform : translateX(-50%);
-      width     : 1100px;
-      height    : 500px;
-      background: radial-gradient(ellipse, rgba(37,99,235,.08) 0%, rgba(20,184,166,.03) 45%, transparent 70%);
-      pointer-events: none;
-      z-index   : 0;
+      display: none;
     }
 
     .app {
@@ -102,12 +114,10 @@
       position  : sticky;
       top       : 0;
       z-index   : 200;
-      background: rgba(9,11,16,.92);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
+      background: var(--color-project-header-bg, #0d1117);
       border-bottom: 1px solid var(--border);
-      margin   : 0 -24px 22px;
-      padding  : 14px 24px;
+      margin   : 0 -24px 20px;
+      padding  : 12px 24px;
       display  : flex;
       align-items: center;
       justify-content: space-between;
@@ -118,28 +128,35 @@
     .logo {
       display    : flex;
       align-items: center;
-      gap        : 14px;
+      gap        : 12px;
     }
 
     .logo-mark {
       width           : 42px;
       height          : 42px;
-      border-radius   : 10px;
-      background      : linear-gradient(135deg, #1e293b 0%, var(--blue-dark) 100%);
-      border          : 1px solid rgba(56,189,248,.3);
+      border-radius   : 50%;
+      background      : #ffffff;
+      border          : 1px solid var(--border2);
+      padding         : 2px;
       display         : flex;
       align-items     : center;
       justify-content : center;
-      font-size       : 1.3rem;
-      box-shadow      : 0 4px 16px rgba(15,23,42,.5);
+      overflow        : hidden;
       flex-shrink     : 0;
     }
 
+    .logo-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
     .logo-title {
-      font-size  : 1.12rem;
-      font-weight: 700;
-      letter-spacing: -.025em;
-      color      : var(--white);
+      font-size  : 1.08rem;
+      font-weight: 600;
+      letter-spacing: -.015em;
+      color      : var(--text);
     }
 
     .logo-sub {
@@ -242,32 +259,31 @@
     }
 
     .q-btn:hover {
-      background: rgba(255,255,255,0.12);
-      transform: translateY(-1px);
-      border-color: rgba(255,255,255,0.25);
+      background: #30363d;
+      border-color: #8b949e;
     }
 
     .q-btn.primary {
-      background: linear-gradient(135deg, var(--blue-dark) 0%, #1d4ed8 100%);
-      border: 1px solid rgba(56,189,248,.25);
-      color: #fff;
-      box-shadow: 0 2px 10px var(--blue-glow);
+      background: var(--green-btn);
+      border: 1px solid rgba(240,246,252,0.1);
+      color: #ffffff;
+      box-shadow: 0 1px 0 rgba(1,4,9,0.4);
     }
 
     .q-btn.primary:hover {
-      background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
-      box-shadow: 0 4px 16px rgba(37,99,235,.42);
+      background: var(--green-btn-hv);
+      border-color: rgba(240,246,252,0.2);
     }
 
     .q-btn.accent {
-      background: linear-gradient(135deg, rgba(6,182,212,.18) 0%, rgba(59,130,246,.18) 100%);
-      border-color: rgba(6,182,212,.4);
-      color: var(--cyan);
+      background: rgba(31,111,235,0.15);
+      border-color: var(--blue-dark);
+      color: var(--color-marketing-icon-primary, #79c0ff);
     }
 
     .q-btn.accent:hover {
-      background: linear-gradient(135deg, rgba(6,182,212,.3) 0%, rgba(59,130,246,.3) 100%);
-      box-shadow: 0 0 15px var(--cyan-glow);
+      background: rgba(31,111,235,0.28);
+      border-color: var(--blue);
     }
 
     .q-btn.danger {
@@ -459,7 +475,7 @@
 
     .viewport-canvas {
       position: relative;
-      background: #02050f;
+      background: #010409;
       min-height: 450px;
       display: flex;
       align-items: center;
@@ -976,13 +992,12 @@
       align-items: center;
       gap: 10px;
       padding: 12px 18px;
-      border-radius: 10px;
+      border-radius: 6px;
       font-size: .82rem;
       font-weight: 600;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 10px 30px rgba(0,0,0,.5);
-      border: 1px solid var(--border2);
-      background: rgba(16,20,28,.96);
+      box-shadow: 0 8px 24px rgba(1,4,9,.65);
+      border: 1px solid var(--border);
+      background: #161b22;
       color: var(--text);
       animation: slideInToast .25s cubic-bezier(0.16, 1, 0.3, 1);
       max-width: 440px;
@@ -1023,10 +1038,12 @@
   <!-- ─────────────────────── HEADER ─────────────────────── -->
   <header>
     <div class="logo">
-      <div class="logo-mark">🎓</div>
+      <div class="logo-mark">
+        <img src="/assets/lpu-logo.png" alt="LPU Logo" />
+      </div>
       <div>
         <div class="logo-title">Smart Classroom AI Operations Center</div>
-        <div class="logo-sub">Autonomous Occupancy Tracking, 4-Quadrant Spatial Analysis &amp; Automated Energy Grid</div>
+        <div class="logo-sub">Lovely Professional University &bull; Autonomous Occupancy Tracking &amp; Energy Grid</div>
       </div>
     </div>
 
@@ -1386,8 +1403,8 @@ let prevAppl    = { fans: null, lights: null };
 /* ───────────────────────────────────────────────────────────
    Chart.js Configurations
 ─────────────────────────────────────────────────────────── */
-Chart.defaults.color       = '#94a3b8';
-Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.color       = '#8b949e';
+Chart.defaults.borderColor = '#30363d';
 
 // 1. History Trend Area Chart
 const histLabels = [];
@@ -1398,11 +1415,11 @@ const histChart = new Chart($('histChart').getContext('2d'), {
   data: {
     labels  : histLabels,
     datasets: [
-      { label:'Q1 (TL)', data:hD.Q1, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.12)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
-      { label:'Q2 (TR)', data:hD.Q2, borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,.09)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
-      { label:'Q3 (BL)', data:hD.Q3, borderColor:'#14b8a6', backgroundColor:'rgba(20,184,166,.09)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
-      { label:'Q4 (BR)', data:hD.Q4, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
-      { label:'Total',   data:hD.total, borderColor:'#f8fafc', fill:false, tension:.38, borderWidth:1.6, pointRadius:0, borderDash:[5,3] },
+      { label:'Q1 (TL)', data:hD.Q1, borderColor:'#58a6ff', backgroundColor:'rgba(88,166,255,.12)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
+      { label:'Q2 (TR)', data:hD.Q2, borderColor:'#79c0ff', backgroundColor:'rgba(121,192,255,.08)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
+      { label:'Q3 (BL)', data:hD.Q3, borderColor:'#3fb950', backgroundColor:'rgba(63,185,80,.08)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
+      { label:'Q4 (BR)', data:hD.Q4, borderColor:'#d29922', backgroundColor:'rgba(210,153,34,.08)', fill:true, tension:.38, borderWidth:2, pointRadius:0 },
+      { label:'Total',   data:hD.total, borderColor:'#e6edf3', fill:false, tension:.38, borderWidth:1.6, pointRadius:0, borderDash:[5,3] },
     ]
   },
   options: {
@@ -1411,11 +1428,11 @@ const histChart = new Chart($('histChart').getContext('2d'), {
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { position:'bottom', labels:{ padding:14, usePointStyle:true, pointStyleWidth:12, font:{ size:11, family:'Inter' } } },
-      tooltip: { backgroundColor:'#10141c', borderColor:'rgba(255,255,255,.12)', borderWidth:1, padding:10 }
+      tooltip: { backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1, padding:10 }
     },
     scales: {
-      x: { ticks:{ maxTicksLimit:10, font:{ size:10 } }, grid:{ color:'rgba(255,255,255,.04)' } },
-      y: { beginAtZero:true, ticks:{ stepSize:2, font:{ size:10, family:'JetBrains Mono' } }, grid:{ color:'rgba(255,255,255,.04)' } }
+      x: { ticks:{ maxTicksLimit:10, font:{ size:10 } }, grid:{ color:'rgba(48,54,61,.45)' } },
+      y: { beginAtZero:true, ticks:{ stepSize:2, font:{ size:10, family:'JetBrains Mono' } }, grid:{ color:'rgba(48,54,61,.45)' } }
     }
   }
 });
@@ -1427,8 +1444,8 @@ const donutChart = new Chart($('donutChart').getContext('2d'), {
     labels  : ['Q1 Top-Left','Q2 Top-Right','Q3 Bottom-Left','Q4 Bottom-Right'],
     datasets: [{
       data           : [0, 0, 0, 0],
-      backgroundColor: ['rgba(59,130,246,.78)','rgba(14,165,233,.78)','rgba(20,184,166,.78)','rgba(245,158,11,.78)'],
-      borderColor    : ['#3b82f6','#0ea5e9','#14b8a6','#f59e0b'],
+      backgroundColor: ['rgba(88,166,255,.82)','rgba(121,192,255,.82)','rgba(63,185,80,.82)','rgba(210,153,34,.82)'],
+      borderColor    : ['#58a6ff','#79c0ff','#3fb950','#d29922'],
       borderWidth    : 1.5,
       hoverOffset    : 6,
     }]
@@ -1437,7 +1454,7 @@ const donutChart = new Chart($('donutChart').getContext('2d'), {
     responsive: true, cutout: '66%', maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-      tooltip: { backgroundColor:'#10141c', borderColor:'rgba(255,255,255,.12)', borderWidth:1,
+      tooltip: { backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1,
                  callbacks:{ label: c => ` ${c.label}: ${c.raw} students` } }
     }
   }
@@ -1449,8 +1466,8 @@ const dbChart = new Chart($('dbChart').getContext('2d'), {
   data: {
     labels: [],
     datasets: [
-      { label: 'Peak Occupancy', data: [], backgroundColor: 'rgba(59,130,246,.82)', borderRadius: 5 },
-      { label: 'Average Occupancy', data: [], type: 'line', borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.15)', fill: true, tension: 0.4, borderWidth: 2 }
+      { label: 'Peak Occupancy', data: [], backgroundColor: 'rgba(31,111,235,.85)', borderRadius: 4 },
+      { label: 'Average Occupancy', data: [], type: 'line', borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,.14)', fill: true, tension: 0.4, borderWidth: 2 }
     ]
   },
   options: {
@@ -1458,10 +1475,10 @@ const dbChart = new Chart($('dbChart').getContext('2d'), {
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { position: 'bottom', labels: { usePointStyle: true, font: { family: 'Inter', size:11 } } },
-      tooltip: { backgroundColor:'#10141c', borderColor:'rgba(255,255,255,.12)', borderWidth:1 }
+      tooltip: { backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1 }
     },
     scales: {
-      y: { beginAtZero:true, grid: { color:'rgba(255,255,255,.04)' }, ticks:{ font:{ family:'JetBrains Mono' } } },
+      y: { beginAtZero:true, grid: { color:'rgba(48,54,61,.45)' }, ticks:{ font:{ family:'JetBrains Mono' } } },
       x: { grid: { display:false } }
     }
   }
@@ -2316,7 +2333,7 @@ function downloadDbChart() {
   exportCanvas.width  = canvas.width;
   exportCanvas.height = canvas.height;
   const ctx = exportCanvas.getContext('2d');
-  ctx.fillStyle = '#10141c';
+  ctx.fillStyle = '#161b22';
   ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
   ctx.drawImage(canvas, 0, 0);
 

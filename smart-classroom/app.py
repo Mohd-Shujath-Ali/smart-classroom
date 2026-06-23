@@ -241,6 +241,12 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/assets/<path:filename>")
+def serve_assets(filename):
+    assets_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+    return send_from_directory(assets_dir, filename)
+
+
 @app.route("/video_feed")
 def video_feed():
     return Response(mjpeg_stream(),
