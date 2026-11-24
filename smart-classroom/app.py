@@ -550,8 +550,8 @@ def api_db_export_csv():
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    print("\n" + "═" * 52)
-    print("  🎓  Smart Classroom AI Dashboard")
-    print("  ➜  Open: http://localhost:5050")
-    print("═" * 52 + "\n")
+    print("\n" + "=" * 52)
+    print("  Smart Classroom AI Dashboard")
+    print("  Open: http://localhost:5050")
+    print("=" * 52 + "\n")
     socketio.run(app, host="0.0.0.0", port=5050, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)

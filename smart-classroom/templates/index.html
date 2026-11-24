@@ -6,9 +6,9 @@
   <title>Smart Classroom AI — Autonomous Monitoring &amp; Energy Management</title>
   <meta name="description" content="Production-grade real-time computer vision system for classroom occupancy tracking, 4-quadrant density analysis, and automated energy appliance optimization" />
 
-  <!-- Typography: Inter & JetBrains Mono -->
+  <!-- Typography: IBM Plex Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <!-- Lightweight, Lean Libraries (<80 KB Total) -->
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
@@ -88,7 +88,7 @@
     body {
       background : var(--bg);
       color      : var(--text);
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       min-height : 100vh;
       overflow-x : hidden;
     }
@@ -657,12 +657,12 @@
 
     .q-num {
       font-size     : 2.85rem;
-      font-weight   : 900;
+      font-weight   : 800;
       line-height   : 1;
-      letter-spacing: -.05em;
+      letter-spacing: -.04em;
       font-variant-numeric: tabular-nums;
       transition    : transform .18s ease;
-      font-family   : 'Inter', sans-serif;
+      font-family   : 'IBM Plex Sans', -apple-system, sans-serif;
     }
 
     .q-num.bump { animation: bumpVal .22s ease; }
@@ -1063,26 +1063,30 @@
   <!-- ─────────────────────── COMMAND ACTION BAR ─────────────────────── -->
   <div class="quickbar">
     <div class="quickbar-label">
-      <span>⚡ Live Control:</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span>Live Control:</span>
     </div>
     <div class="quickbar-group">
       <button class="q-btn primary" id="btnPlayDemo">
-        <span>🎬 Start Classroom Demo Stream</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+        <span>Start Classroom Demo Stream</span>
       </button>
       <button class="q-btn accent" id="btnStartWebcam">
-        <span>📷 Start Live Webcam</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        <span>Start Live Webcam</span>
       </button>
       <div style="display:flex; align-items:center; gap:4px;">
-        <input type="text" id="customVideoPath" placeholder="Video / RTSP path…" style="background:var(--bg2); border:1px solid var(--border2); color:var(--text); border-radius:8px; padding:6px 10px; font-size:.76rem; width:155px; outline:none;" />
-        <button class="q-btn" id="btnPlayCustom" title="Start stream from custom file path or RTSP URL">▶ Source</button>
+        <input type="text" id="customVideoPath" placeholder="Video / RTSP path..." style="background:var(--bg2); border:1px solid var(--border2); color:var(--text); border-radius:6px; padding:6px 10px; font-size:.76rem; width:155px; outline:none;" />
+        <button class="q-btn" id="btnPlayCustom" title="Start stream from custom file path or RTSP URL">Load Source</button>
       </div>
       <button class="q-btn danger" id="btnStopFeed" disabled>
-        <span>⏹ Stop Feed</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+        <span>Stop Feed</span>
       </button>
     </div>
 
     <div class="quickbar-label" style="margin-left:auto;">
-      <span>🖼️ 1-Click Test Datasets:</span>
+      <span>Test Datasets:</span>
     </div>
     <div class="quickbar-group">
       <button class="q-btn" data-sample="sample_1.jpg" onclick="runSample('sample_1.jpg')">
@@ -1098,7 +1102,8 @@
         <span class="tag-badge">12 Students</span>
       </button>
       <button class="q-btn" onclick="$('imgInput').click()">
-        <span>📤 Upload Image</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Upload Image</span>
       </button>
     </div>
   </div>
@@ -1108,7 +1113,7 @@
     <div class="stat-card c-fps">
       <div class="st-hd">
         <span class="st-label">Ingestion Rate</span>
-        <span class="st-icon">⚡</span>
+        <span class="st-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
       </div>
       <div class="st-val" id="stFps">0.0</div>
       <div class="st-sub">Frames / Second (Inference)</div>
@@ -1116,7 +1121,7 @@
     <div class="stat-card c-persons">
       <div class="st-hd">
         <span class="st-label">Active Attendance</span>
-        <span class="st-icon">👥</span>
+        <span class="st-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
       </div>
       <div class="st-val" id="stPersons">0</div>
       <div class="st-sub">Total Students Detected</div>
@@ -1124,7 +1129,7 @@
     <div class="stat-card c-energy">
       <div class="st-hd">
         <span class="st-label">Energy Conservation</span>
-        <span class="st-icon">🌱</span>
+        <span class="st-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
       </div>
       <div class="st-val" id="stWattsSaved" style="color:var(--green);">690W</div>
       <div class="st-sub" id="stWattsPct">100% Load Saved vs Standard Max</div>
@@ -1132,7 +1137,7 @@
     <div class="stat-card c-status">
       <div class="st-hd">
         <span class="st-label">Pipeline Source</span>
-        <span class="st-icon">📡</span>
+        <span class="st-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg></span>
       </div>
       <div class="st-val sm" id="stSource">IDLE</div>
       <div class="st-sub" id="stFrameCounter">0 Inferences Processed</div>
@@ -1146,10 +1151,10 @@
     <div class="card">
       <div class="viewport-tabs">
         <button class="v-tab active" id="tabLive" onclick="switchTab('live')">
-          <span>🎥 Live Stream Viewport (MJPEG)</span>
+          <span>Live Stream Viewport (MJPEG)</span>
         </button>
         <button class="v-tab" id="tabImage" onclick="switchTab('image')">
-          <span>📸 Image &amp; Snapshot Analysis (YOLOv8)</span>
+          <span>Image &amp; Snapshot Analysis (YOLOv8)</span>
         </button>
       </div>
 
@@ -1160,9 +1165,9 @@
             <span id="hudModeTxt">LIVE STREAM</span>
           </div>
           <div class="hud-badge" style="gap:10px;">
-            <span id="hudOccupancy">👥 0 Students</span>
+            <span id="hudOccupancy">0 Students</span>
             <span style="opacity:0.4;">|</span>
-            <span id="hudFpsBadge">⚡ 0.0 FPS</span>
+            <span id="hudFpsBadge">0.0 FPS</span>
           </div>
         </div>
 
@@ -1170,7 +1175,9 @@
         <img id="resultImage" alt="YOLO Person Detection Annotated Snapshot" />
 
         <div class="no-feed-view" id="noFeedView">
-          <div class="nf-icon">🎥</div>
+          <div class="nf-icon">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          </div>
           <h3>Inference Pipeline Ready</h3>
           <p>Click <b>Start Classroom Demo Stream</b> or <b>Start Live Webcam</b> above, choose a 1-click sample dataset, or drag &amp; drop any classroom image directly onto this canvas.</p>
         </div>
@@ -1180,7 +1187,7 @@
       <input type="file" id="imgInput" accept="image/*,.jpg,.jpeg,.png,.webp,.bmp" style="display:none;" />
       <div class="image-controls-panel" id="imageControlBar">
         <div class="upload-dropzone" id="uploadZone">
-          <span style="font-size:1.4rem;">📤</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           <div>
             <div style="font-size:.82rem; font-weight:700;">Drop classroom image here or click to browse</div>
             <div style="font-size:.70rem; color:var(--text2);">JPG, PNG, WebP supported &bull; YOLOv8 edge inference (or press Ctrl+V to paste)</div>
@@ -1250,7 +1257,9 @@
         </div>
         <div class="appliance-grid">
           <div class="appliance-box" id="fanBox">
-            <div class="appliance-icon" id="fanIcon">🌀</div>
+            <div class="appliance-icon" id="fanIcon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 12c-2-2.67-6-2.67-6 0s4 2.67 6 0zm0 0c2 2.67 6 2.67 6 0s-4-2.67-6 0zm0 0c2.67-2 2.67-6 0-6s-2.67 4 0 6zm0 0c-2.67 2-2.67 6 0 6s2.67-4 0-6z"/><circle cx="12" cy="12" r="1.5"/></svg>
+            </div>
             <div class="appliance-count cyan" id="fanCount">0</div>
             <div class="appliance-sub">Fans Running</div>
             <div class="manual-steppers" id="fanSteppers" style="display:none; justify-content:center; gap:6px; margin-top:8px;">
@@ -1259,7 +1268,9 @@
             </div>
           </div>
           <div class="appliance-box" id="lightBox">
-            <div class="appliance-icon" id="lightIcon">💡</div>
+            <div class="appliance-icon" id="lightIcon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+            </div>
             <div class="appliance-count amber" id="lightCount">0</div>
             <div class="appliance-sub">Lights Active</div>
             <div class="manual-steppers" id="lightSteppers" style="display:none; justify-content:center; gap:6px; margin-top:8px;">
@@ -1269,7 +1280,7 @@
           </div>
         </div>
         <div class="appliance-info-bar">
-          <span id="energyRuleText">🌱 0 Students &rarr; Standby Eco Mode</span>
+          <span id="energyRuleText">Standby: 0 Students (Eco Mode)</span>
           <span id="energyWattsBadge" style="font-size:.70rem; color:var(--green); font-family:'JetBrains Mono'; font-weight:700;">690W SAVED (100%)</span>
         </div>
       </div>
@@ -1328,8 +1339,8 @@
       <span>Historical Classroom Attendance (Past 24 Hours &bull; SQLite WAL)</span>
       <div style="display:flex; gap:8px; align-items:center;">
         <span class="badge" id="dbTotalFrames">0 frames logged</span>
-        <button class="q-btn" style="padding:4px 10px; font-size:.72rem;" onclick="window.location.href='/api/export/csv'">⬇ Export CSV</button>
-        <button class="q-btn accent" style="padding:4px 10px; font-size:.72rem;" onclick="downloadDbChart()">⬇ Download Graph</button>
+        <button class="q-btn" style="padding:4px 10px; font-size:.72rem;" onclick="window.location.href='/api/export/csv'">Export CSV</button>
+        <button class="q-btn accent" style="padding:4px 10px; font-size:.72rem;" onclick="downloadDbChart()">Download Graph</button>
       </div>
     </div>
 
@@ -1359,7 +1370,7 @@
     <div style="border-top:1px solid var(--border); padding:14px 20px;">
       <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
         <span style="font-size:.74rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text2);">Recorded Sessions (Click row to inspect timeline)</span>
-        <button class="q-btn" style="padding:3px 10px; font-size:.70rem;" onclick="fetchSessions()">↻ Refresh</button>
+        <button class="q-btn" style="padding:3px 10px; font-size:.70rem;" onclick="fetchSessions()">Refresh</button>
       </div>
       <div class="table-scroll" style="max-height:190px;">
         <table>
@@ -1427,7 +1438,7 @@ const histChart = new Chart($('histChart').getContext('2d'), {
     animation: { duration: 0 },
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: { position:'bottom', labels:{ padding:14, usePointStyle:true, pointStyleWidth:12, font:{ size:11, family:'Inter' } } },
+      legend: { position:'bottom', labels:{ padding:14, usePointStyle:true, pointStyleWidth:12, font:{ size:11, family:'IBM Plex Sans' } } },
       tooltip: { backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1, padding:10 }
     },
     scales: {
@@ -1474,7 +1485,7 @@ const dbChart = new Chart($('dbChart').getContext('2d'), {
     responsive: true, maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: { position: 'bottom', labels: { usePointStyle: true, font: { family: 'Inter', size:11 } } },
+      legend: { position: 'bottom', labels: { usePointStyle: true, font: { family: 'IBM Plex Sans', size:11 } } },
       tooltip: { backgroundColor:'#161b22', borderColor:'#30363d', borderWidth:1 }
     },
     scales: {
@@ -1510,8 +1521,8 @@ socket.on('update', data => {
 
   // HUD
   $('hudOverlay').style.display   = 'flex';
-  $('hudOccupancy').textContent   = `👥 ${total} Students`;
-  $('hudFpsBadge').textContent    = `⚡ ${fps.toFixed(1)} FPS`;
+  $('hudOccupancy').textContent   = `${total} Students`;
+  $('hudFpsBadge').textContent    = `${fps.toFixed(1)} FPS`;
 
   // Appliances
   if (appliances) updateAppliances(appliances, total);
@@ -1616,15 +1627,15 @@ function updateAppliances(appliances, total) {
   if ($('lightSteppers')) $('lightSteppers').style.display = isManual ? 'flex' : 'none';
 
   if (isManual) {
-    ruleTxt.textContent = `🎛️ Manual Override: ${fans}/6 Fans, ${lights}/8 Lights`;
+    ruleTxt.textContent = `Manual Override: ${fans}/6 Fans, ${lights}/8 Lights`;
   } else if (total === 0) {
-    ruleTxt.textContent = '🌱 Standby: 0 Fans, 0 Lights active (Eco Mode)';
+    ruleTxt.textContent = 'Standby: 0 Fans, 0 Lights active (Eco Mode)';
   } else if (total <= 10) {
-    ruleTxt.textContent = '⚡ Low density: 2 Fans, 4 Lights active';
+    ruleTxt.textContent = 'Low density: 2 Fans, 4 Lights active';
   } else if (total < 20) {
-    ruleTxt.textContent = '💡 Medium density: 4 Fans, 6 Lights active';
+    ruleTxt.textContent = 'Medium density: 4 Fans, 6 Lights active';
   } else {
-    ruleTxt.textContent = '❄️ Full capacity: 6 Fans, 8 Lights active';
+    ruleTxt.textContent = 'Full capacity: 6 Fans, 8 Lights active';
   }
 
   // Wattage savings indicator
@@ -2026,8 +2037,8 @@ function renderSnapshotResult(data, name) {
   $('hudOverlay').style.display = 'flex';
   $('hudModeBadge').className   = 'hud-badge snapshot-indicator';
   $('hudModeTxt').textContent   = 'IMAGE SNAPSHOT';
-  $('hudOccupancy').textContent = `👥 ${data.total} Students`;
-  $('hudFpsBadge').textContent  = '⚡ SNAPSHOT';
+  $('hudOccupancy').textContent = `${data.total} Students`;
+  $('hudFpsBadge').textContent  = 'SNAPSHOT';
 
   // 3. Stats row
   $('stPersons').textContent      = data.total;
@@ -2153,8 +2164,8 @@ function setStatus(s) {
 function toast(msg, type = 'info') {
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-  el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  const tag = type === 'success' ? 'OK' : type === 'error' ? 'ERR' : 'INFO';
+  el.innerHTML = `<span class="tag-badge">${tag}</span><span>${msg}</span>`;
   $('toasts').appendChild(el);
   setTimeout(() => el.remove(), 4200);
 }
@@ -2244,8 +2255,8 @@ async function syncInitialStatus() {
       $('hudOverlay').style.display  = 'flex';
       $('hudModeBadge').className    = 'hud-badge live-indicator';
       $('hudModeTxt').textContent    = s.source_type === 'demo' ? 'DEMO STREAM' : 'LIVE WEBCAM';
-      $('hudOccupancy').textContent  = `👥 ${total} Students`;
-      $('hudFpsBadge').textContent   = `⚡ ${Number(s.fps || 0).toFixed(1)} FPS`;
+      $('hudOccupancy').textContent  = `${total} Students`;
+      $('hudFpsBadge').textContent   = `${Number(s.fps || 0).toFixed(1)} FPS`;
     } else if (s.source_type === 'sample_image' || s.source_type === 'custom_image') {
       setStatus('image');
       $('stSource').textContent = 'IMAGE';
