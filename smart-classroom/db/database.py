@@ -10,6 +10,7 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
+from werkzeug.security import generate_password_hash, check_password_hash
 
 DB_PATH = Path(__file__).parent / "classroom.db"
 
@@ -54,9 +55,72 @@ def init_db():
 
             CREATE INDEX IF NOT EXISTS idx_frames_session
                 ON frames(session_id);
+
+            CREATE TABLE IF NOT EXISTS users (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                username      TEXT    UNIQUE NOT NULL,
+                password_hash TEXT    NOT NULL,
+                role          TEXT    NOT NULL,
+                full_name     TEXT    NOT NULL,
+                created_at    REAL    NOT NULL
+            );
         """)
+    seed_default_users_if_empty()
     seed_historical_data_if_empty()
-    print(f"[DB] Ready → {DB_PATH}")
+    print(f"[DB] Ready -> {DB_PATH}")
+
+
+def seed_default_users_if_empty():
+    """Seed starter role-based accounts if the users table is empty."""
+    c = _conn()
+    row = c.execute("SELECT COUNT(*) FROM users").fetchone()
+    if row and row[0] > 0:
+        return
+    now = time.time()
+    defaults = [
+        ("admin", "admin123", "admin", "System Administrator"),
+        ("faculty", "faculty123", "faculty", "LPU Faculty User"),
+        ("viewer", "viewer123", "viewer", "Facility Auditor"),
+    ]
+    for username, raw_pw, role, full_name in defaults:
+        c.execute(
+            "INSERT INTO users (username, password_hash, role, full_name, created_at) VALUES (?, ?, ?, ?, ?)",
+            (username, generate_password_hash(raw_pw), role, full_name, now),
+        )
+    c.commit()
+    print("[DB] Seeded default role-based users (admin, faculty, viewer).")
+
+
+def verify_user(username: str, password: str) -> dict | None:
+    """Validate credentials and return public user profile dict if valid."""
+    row = _conn().execute(
+        "SELECT id, username, password_hash, role, full_name FROM users WHERE username = ?",
+        (username.strip().lower(),),
+    ).fetchone()
+    if not row or not check_password_hash(row["password_hash"], password):
+        return None
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "role": row["role"],
+        "full_name": row["full_name"],
+    }
+
+
+def list_users() -> list[dict]:
+    rows = _conn().execute(
+        "SELECT id, username, role, full_name, created_at FROM users ORDER BY id ASC"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_user_role(user_id: int, role: str) -> bool:
+    if role not in ("admin", "faculty", "viewer"):
+        return False
+    c = _conn()
+    cur = c.execute("UPDATE users SET role = ? WHERE id = ?", (role, user_id))
+    c.commit()
+    return cur.rowcount > 0
 
 
 def seed_historical_data_if_empty():

@@ -7,7 +7,7 @@ import os, sys, time, threading, base64
 
 import cv2
 import numpy as np
-from flask import Flask, render_template, Response, jsonify, request, make_response, send_from_directory
+from flask import Flask, render_template, Response, jsonify, request, make_response, send_from_directory, session, redirect, url_for
 from flask_socketio import SocketIO
 import csv
 import datetime
@@ -21,7 +21,8 @@ from config import MODEL_PATH, CONF_THRESHOLD, CAMERA_INDEX
 
 from db.database import (
     init_db, start_session, end_session, record_frame, flush_all,
-    get_sessions, get_session_frames, get_analytics, get_hourly_summary, get_session_timeline
+    get_sessions, get_session_frames, get_analytics, get_hourly_summary, get_session_timeline,
+    verify_user, list_users, update_user_role
 )
 
 # ── App setup ─────────────────────────────────────────────────────────────────
@@ -245,6 +246,33 @@ def index():
 def serve_assets(filename):
     assets_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
     return send_from_directory(assets_dir, filename)
+
+
+# ── Authentication API ────────────────────────────────────────────────────────
+@app.route("/api/auth/login", methods=["POST"])
+def api_auth_login():
+    data = request.json or {}
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    user = verify_user(username, password)
+    if not user:
+        return jsonify({"error": "Invalid username or password"}), 401
+    session["user"] = user
+    return jsonify({"success": True, "user": user})
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def api_auth_logout():
+    session.pop("user", None)
+    return jsonify({"success": True})
+
+
+@app.route("/api/auth/me", methods=["GET"])
+def api_auth_me():
+    user = session.get("user")
+    if not user:
+        return jsonify({"authenticated": False, "user": None}), 401
+    return jsonify({"authenticated": True, "user": user})
 
 
 @app.route("/video_feed")
