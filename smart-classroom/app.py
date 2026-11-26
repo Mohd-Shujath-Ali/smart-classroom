@@ -4,6 +4,7 @@ Flask + Socket.IO server: MJPEG stream, REST API, real-time events
 """
 
 import os, sys, time, threading, base64
+from functools import wraps
 
 import cv2
 import numpy as np
@@ -236,8 +237,57 @@ def mjpeg_stream():
         time.sleep(0.033)   # cap at ~30 fps pushed to client
 
 
-# ── Core Streaming Routes ─────────────────────────────────────────────────────
+# ── Auth Helpers & Role Decorators ────────────────────────────────────────────
+@app.context_processor
+def inject_user():
+    return {"current_user": session.get("user")}
+
+
+def login_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not session.get("user"):
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Authentication required", "code": "UNAUTHORIZED"}), 401
+            return redirect(url_for("login_page", next=request.path))
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def roles_required(*allowed_roles):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            user = session.get("user")
+            if not user:
+                if request.path.startswith("/api/"):
+                    return jsonify({"error": "Authentication required", "code": "UNAUTHORIZED"}), 401
+                return redirect(url_for("login_page", next=request.path))
+            if user.get("role") not in allowed_roles:
+                if request.path.startswith("/api/"):
+                    return jsonify({"error": "Insufficient role permissions", "code": "FORBIDDEN"}), 403
+                return redirect(url_for("index"))
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+# ── Core Streaming & Auth Page Routes ─────────────────────────────────────────
+@app.route("/login", methods=["GET"])
+def login_page():
+    if session.get("user"):
+        return redirect(url_for("index"))
+    return render_template("login.html", next_url=request.args.get("next", "/"))
+
+
+@app.route("/logout", methods=["GET"])
+def logout_page():
+    session.pop("user", None)
+    return redirect(url_for("login_page"))
+
+
 @app.route("/")
+@login_required
 def index():
     return render_template("index.html")
 
@@ -275,7 +325,24 @@ def api_auth_me():
     return jsonify({"authenticated": True, "user": user})
 
 
+@app.route("/api/users", methods=["GET"])
+@roles_required("admin")
+def api_users():
+    return jsonify({"success": True, "users": list_users()})
+
+
+@app.route("/api/users/<int:user_id>/role", methods=["POST"])
+@roles_required("admin")
+def api_user_role(user_id):
+    data = request.json or {}
+    role = (data.get("role") or "").strip().lower()
+    if not update_user_role(user_id, role):
+        return jsonify({"error": "Invalid user or role"}), 400
+    return jsonify({"success": True, "user_id": user_id, "role": role})
+
+
 @app.route("/video_feed")
+@login_required
 def video_feed():
     return Response(mjpeg_stream(),
                     mimetype="multipart/x-mixed-replace; boundary=frame")
@@ -284,6 +351,7 @@ def video_feed():
 # ── Stream Lifecycle Controls ─────────────────────────────────────────────────
 @app.route("/api/stream/start", methods=["POST"])
 @app.route("/api/start", methods=["POST"])
+@roles_required("admin", "faculty")
 def api_start():
     data        = request.json or {}
     source_type = data.get("source", "webcam")
@@ -322,6 +390,7 @@ def api_start():
 
 @app.route("/api/stream/stop", methods=["POST"])
 @app.route("/api/stop", methods=["POST"])
+@roles_required("admin", "faculty")
 def api_stop():
     stop_event.set()
     state["running"] = False
@@ -330,6 +399,7 @@ def api_stop():
 
 @app.route("/api/stream/status", methods=["GET"])
 @app.route("/api/status", methods=["GET"])
+@login_required
 def api_status():
     s = {k: v for k, v in state.items() if k != "history"}
     s["appliances"] = get_appliances_state(state.get("total_persons", 0))
@@ -338,8 +408,11 @@ def api_status():
 
 
 @app.route("/api/config", methods=["GET", "POST"])
+@login_required
 def api_config():
     if request.method == "POST":
+        if session.get("user", {}).get("role") != "admin":
+            return jsonify({"error": "Admin role required to modify system configuration"}), 403
         data = request.json or {}
         if "conf_threshold" in data:
             try:
@@ -354,6 +427,7 @@ def api_config():
 
 
 @app.route("/api/appliances/override", methods=["POST"])
+@roles_required("admin")
 def api_appliances_override():
     data = request.json or {}
     manual = bool(data.get("manual", False))
@@ -370,6 +444,7 @@ def api_appliances_override():
 
 
 @app.route("/api/history", methods=["GET"])
+@login_required
 def api_history():
     return jsonify(state["history"])
 
@@ -377,6 +452,7 @@ def api_history():
 # ── Sample Datasets ───────────────────────────────────────────────────────────
 @app.route("/api/samples", methods=["GET"])
 @app.route("/api/sample_list", methods=["GET"])
+@login_required
 def api_sample_list():
     """Return available sample images for instant 1-click testing."""
     samples = [
@@ -389,6 +465,7 @@ def api_sample_list():
 
 @app.route("/api/samples/<name>", methods=["GET", "POST"])
 @app.route("/api/sample_image/<name>", methods=["GET", "POST"])
+@roles_required("admin", "faculty")
 def api_sample_image(name):
     """Load and infer sample image directly without requiring file upload."""
     if not name.endswith(".jpg"):
@@ -451,6 +528,7 @@ def api_sample_image(name):
 # ── Image Snapshot Inference ──────────────────────────────────────────────────
 @app.route("/api/detect/image", methods=["POST"])
 @app.route("/api/detect_image", methods=["POST"])
+@roles_required("admin", "faculty")
 def api_detect_image():
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
@@ -525,6 +603,7 @@ def api_detect_image():
 # ── Historical Analytics & Persistence ────────────────────────────────────────
 @app.route("/api/analytics", methods=["GET"])
 @app.route("/api/db/analytics", methods=["GET"])
+@login_required
 def api_db_analytics():
     analytics = get_analytics()
     hourly = get_hourly_summary()
@@ -544,12 +623,14 @@ def api_db_analytics():
 
 @app.route("/api/sessions", methods=["GET"])
 @app.route("/api/db/sessions", methods=["GET"])
+@login_required
 def api_db_sessions():
     limit = int(request.args.get("limit", 12))
     return jsonify(get_sessions(limit))
 
 
 @app.route("/api/sessions/<int:session_id>/timeline", methods=["GET"])
+@login_required
 def api_session_timeline(session_id):
     frames = get_session_timeline(session_id)
     return jsonify({
@@ -561,6 +642,7 @@ def api_session_timeline(session_id):
 
 @app.route("/api/export/csv", methods=["GET"])
 @app.route("/api/db/export_csv", methods=["GET"])
+@login_required
 def api_db_export_csv():
     data = get_hourly_summary()
     si = StringIO()
