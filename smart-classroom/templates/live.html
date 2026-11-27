@@ -1,0 +1,462 @@
+{% extends "base.html" %}
+{% block title %}Live Operations{% endblock %}
+
+{% block content %}
+<div class="quickbar">
+  <div class="quickbar-label">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <span>Stream Control</span>
+  </div>
+
+  {% if current_user and current_user.role in ['admin', 'faculty'] %}
+  <div class="quickbar-group">
+    <button class="q-btn primary" id="btnPlayDemo">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+      <span>Start Demo Stream</span>
+    </button>
+    <button class="q-btn accent" id="btnStartWebcam">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      <span>Start Live Webcam</span>
+    </button>
+    <div style="display:flex; align-items:center; gap:6px;">
+      <input type="text" id="customVideoPath" placeholder="Video / RTSP path..." style="width:165px;" />
+      <button class="q-btn" id="btnPlayCustom">Load Source</button>
+    </div>
+    <button class="q-btn danger" id="btnStopFeed" disabled>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+      <span>Stop Feed</span>
+    </button>
+  </div>
+  {% else %}
+  <div class="quickbar-group">
+    <span class="tag-badge">READ-ONLY VIEWER ACCESS</span>
+    <span style="font-size:.78rem; color:var(--text2);">Stream start/stop requires Faculty or Admin role.</span>
+  </div>
+  {% endif %}
+
+  <div class="quickbar-group" style="margin-left:auto;">
+    <span class="quickbar-label" style="margin-right:4px;">Camera Grid:</span>
+    {% if current_user and current_user.role in ['admin', 'faculty'] %}
+    <select id="quickZonePreset" title="Quick separation grid preset">
+      <option value="2x2|overhead">2x2 Quadrant (Overhead)</option>
+      <option value="1x2|overhead">1x2 Left/Right Split</option>
+      <option value="2x1|elevated_front">2x1 Front/Back Split</option>
+      <option value="2x3|elevated_front">2x3 Wide Hall (6 Zones)</option>
+      <option value="3x2|corner_left">3x2 Corner Angled (6 Zones)</option>
+      <option value="3x3|wide_panoramic">3x3 Panoramic (9 Zones)</option>
+    </select>
+    <button class="q-btn" id="btnApplyQuickZone" onclick="applyQuickZone()">Apply Grid</button>
+    {% else %}
+    <span class="badge" id="zoneConfigBadge">2x2 overhead</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card c-fps">
+    <div class="st-hd"><span class="st-label">Ingestion Rate</span></div>
+    <div class="st-val" id="stFps">0.0</div>
+    <div class="st-sub">Frames / Second</div>
+  </div>
+  <div class="stat-card c-persons">
+    <div class="st-hd"><span class="st-label">Active Attendance</span></div>
+    <div class="st-val" id="stPersons">0</div>
+    <div class="st-sub">Total Students Detected</div>
+  </div>
+  <div class="stat-card c-energy">
+    <div class="st-hd"><span class="st-label">Energy Conservation</span></div>
+    <div class="st-val" id="stWattsSaved" style="color:var(--green);">690W</div>
+    <div class="st-sub" id="stWattsPct">100% Load Saved vs Max</div>
+  </div>
+  <div class="stat-card c-status">
+    <div class="st-hd"><span class="st-label">Pipeline Source</span></div>
+    <div class="st-val sm" id="stSource">IDLE</div>
+    <div class="st-sub" id="stFrameCounter">0 Inferences Processed</div>
+  </div>
+</div>
+
+<div class="main-grid">
+  <div class="card">
+    <div class="card-hd">
+      <span>Live Stream Viewport (MJPEG)</span>
+      <span class="badge" id="viewportZoneInfo">2x2 &bull; overhead</span>
+    </div>
+    <div class="viewport-canvas">
+      <div class="hud-overlay" id="hudOverlay" style="display:none;">
+        <div class="hud-badge live-indicator" id="hudModeBadge">
+          <span class="s-dot blink"></span>
+          <span id="hudModeTxt">LIVE STREAM</span>
+        </div>
+        <div class="hud-badge" style="gap:10px;">
+          <span id="hudOccupancy">0 Students</span>
+          <span style="opacity:0.4;">|</span>
+          <span id="hudFpsBadge">0.0 FPS</span>
+        </div>
+      </div>
+      <img id="videoFeed" alt="Real-time Classroom Stream" />
+      <div class="no-feed-view" id="noFeedView">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        <h3>Live Pipeline Ready</h3>
+        <p>Start the demo stream, webcam, or custom RTSP/video source above to stream YOLOv8 occupancy telemetry and dynamic camera zone counts.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="card">
+      <div class="card-hd">
+        <span id="zoneCardTitle">Spatial Zone Breakdown</span>
+        <span class="badge" id="totalBadge">Total: 0</span>
+      </div>
+      <div class="z-grid" id="dynamicZoneGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">Zone Occupancy Ratio</div>
+      <div class="donut-wrap"><canvas id="donutChart"></canvas></div>
+    </div>
+
+    <div class="card appliance-card" id="appliancesCard">
+      <div class="card-hd">
+        <span>Automated Appliance Grid</span>
+        <div style="display:flex; gap:6px; align-items:center;">
+          {% if current_user and current_user.role == 'admin' %}
+          <button class="q-btn" id="btnApplianceMode" style="padding:3px 8px; font-size:.68rem;" onclick="toggleApplianceOverride()">AUTO AI</button>
+          {% endif %}
+          <span class="mode-pill eco" id="applianceModeBadge">ECO SAVING (0)</span>
+        </div>
+      </div>
+      <div class="appliance-grid">
+        <div class="appliance-box" id="fanBox">
+          <div class="appliance-icon" id="fanIcon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 12c-2-2.67-6-2.67-6 0s4 2.67 6 0zm0 0c2 2.67 6 2.67 6 0s-4-2.67-6 0zm0 0c2.67-2 2.67-6 0-6s-2.67 4 0 6zm0 0c-2.67 2-2.67 6 0 6s2.67-4 0-6z"/><circle cx="12" cy="12" r="1.5"/></svg>
+          </div>
+          <div class="appliance-count cyan" id="fanCount">0</div>
+          <div class="appliance-sub">Fans Running</div>
+          <div class="manual-steppers" id="fanSteppers" style="display:none; justify-content:center; gap:6px; margin-top:8px;">
+            <button class="q-btn" style="padding:2px 9px;" onclick="adjustAppliance('fans', -1)">-</button>
+            <button class="q-btn" style="padding:2px 9px;" onclick="adjustAppliance('fans', 1)">+</button>
+          </div>
+        </div>
+        <div class="appliance-box" id="lightBox">
+          <div class="appliance-icon" id="lightIcon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+          </div>
+          <div class="appliance-count amber" id="lightCount">0</div>
+          <div class="appliance-sub">Lights Active</div>
+          <div class="manual-steppers" id="lightSteppers" style="display:none; justify-content:center; gap:6px; margin-top:8px;">
+            <button class="q-btn" style="padding:2px 9px;" onclick="adjustAppliance('lights', -1)">-</button>
+            <button class="q-btn" style="padding:2px 9px;" onclick="adjustAppliance('lights', 1)">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="appliance-info-bar">
+        <span id="energyRuleText">Standby: 0 Students (Eco Mode)</span>
+        <span id="energyWattsBadge" style="font-size:.70rem; color:var(--green); font-family:'JetBrains Mono'; font-weight:700;">690W SAVED (100%)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="history-grid">
+  <div class="card">
+    <div class="card-hd">
+      <span>Live Occupancy Telemetry Trend</span>
+      <span class="badge" id="histLabel">Last 60 points</span>
+    </div>
+    <div class="chart-body"><canvas id="histChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <span>Recent Detection Log</span>
+      <span class="badge" id="logCountBadge">0 entries</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr id="logHeadRow">
+            <th>Frame</th><th>Zone Breakdown</th><th>Total</th><th>FPS</th>
+          </tr>
+        </thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MAX_HIST = 60, MAX_ROWS = 60, CHART_THR = 3;
+let updateCtr = 0, logRowCtr = 0;
+let activeZoneConfig = { rows: 2, cols: 2, angle_mode: 'overhead', labels: ['Q1','Q2','Q3','Q4'] };
+let prevZones = {};
+
+const histLabels = [];
+const histSeries = {};
+
+const histChart = new Chart($('histChart').getContext('2d'), {
+  type: 'line',
+  data: { labels: histLabels, datasets: [] },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: { duration: 0 },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true, font: { size: 11, family: 'IBM Plex Sans' } } },
+      tooltip: { backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1 }
+    },
+    scales: {
+      x: { ticks: { maxTicksLimit: 10, font: { size: 10 } }, grid: { color: 'rgba(48,54,61,.45)' } },
+      y: { beginAtZero: true, ticks: { stepSize: 2, font: { size: 10, family: 'JetBrains Mono' } }, grid: { color: 'rgba(48,54,61,.45)' } }
+    }
+  }
+});
+
+const donutChart = new Chart($('donutChart').getContext('2d'), {
+  type: 'doughnut',
+  data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderColor: [], borderWidth: 1.5, hoverOffset: 6 }] },
+  options: {
+    responsive: true, cutout: '66%', maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1, callbacks: { label: c => ` ${c.label}: ${c.raw} students` } }
+    }
+  }
+});
+
+function buildZoneUI(cfg) {
+  activeZoneConfig = cfg;
+  const grid = $('dynamicZoneGrid');
+  const cols = cfg.cols || 2;
+  const labels = cfg.labels || ['Q1','Q2','Q3','Q4'];
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  grid.innerHTML = labels.map((lbl, idx) => {
+    const color = ZONE_PALETTE[idx % ZONE_PALETTE.length];
+    return `
+      <div class="z-cell" id="zc_${lbl}">
+        <div class="z-chip" style="background:${color}22; color:${color};">${lbl}</div>
+        <div class="z-num" id="zn_${lbl}" style="color:${color};">0</div>
+        <div class="z-pos">Zone ${idx + 1}</div>
+        <div class="z-meter"><div class="z-fill" id="zf_${lbl}" style="background:${color};"></div></div>
+      </div>
+    `;
+  }).join('');
+
+  if ($('viewportZoneInfo')) $('viewportZoneInfo').textContent = `${cfg.rows}x${cfg.cols} | ${cfg.angle_mode}`;
+  if ($('zoneConfigBadge'))  $('zoneConfigBadge').textContent  = `${cfg.rows}x${cfg.cols} ${cfg.angle_mode}`;
+
+  // Rebuild charts
+  donutChart.data.labels = labels;
+  donutChart.data.datasets[0].data = labels.map(() => 0);
+  donutChart.data.datasets[0].backgroundColor = labels.map((_, i) => ZONE_PALETTE[i % ZONE_PALETTE.length] + 'cc');
+  donutChart.data.datasets[0].borderColor = labels.map((_, i) => ZONE_PALETTE[i % ZONE_PALETTE.length]);
+  donutChart.update('none');
+
+  histLabels.length = 0;
+  const ds = labels.map((lbl, idx) => {
+    histSeries[lbl] = [];
+    const c = ZONE_PALETTE[idx % ZONE_PALETTE.length];
+    return { label: lbl, data: histSeries[lbl], borderColor: c, backgroundColor: c + '1a', fill: true, tension: .35, borderWidth: 1.8, pointRadius: 0 };
+  });
+  histSeries.Total = [];
+  ds.push({ label: 'Total', data: histSeries.Total, borderColor: '#e6edf3', fill: false, tension: .35, borderWidth: 1.5, pointRadius: 0, borderDash: [5,3] });
+  histChart.data.datasets = ds;
+  histChart.update('none');
+  prevZones = {};
+}
+
+function renderZoneValues(zoneMap, total) {
+  const labels = activeZoneConfig.labels || Object.keys(zoneMap);
+  labels.forEach(lbl => {
+    const val = zoneMap[lbl] || 0;
+    const fill = $('zf_' + lbl);
+    if (fill) fill.style.width = (total > 0 ? Math.round((val / total) * 100) : 0) + '%';
+    if (prevZones[lbl] !== val) {
+      prevZones[lbl] = val;
+      const numEl = $('zn_' + lbl);
+      const cellEl = $('zc_' + lbl);
+      if (numEl) numEl.textContent = val;
+      if (cellEl) {
+        cellEl.classList.remove('flash');
+        void cellEl.offsetWidth;
+        cellEl.classList.add('flash');
+      }
+    }
+  });
+  if ($('totalBadge')) $('totalBadge').textContent = `Total: ${total}`;
+}
+
+const socket = io();
+socket.on('connect', () => toast('Connected to live operations stream', 'success'));
+socket.on('zone_config_updated', cfg => {
+  buildZoneUI(cfg);
+  toast(`Camera grid updated: ${cfg.rows}x${cfg.cols} (${cfg.angle_mode})`, 'info');
+});
+
+socket.on('update', data => {
+  const { frame, fps, total, appliances } = data;
+  const zoneMap = data.zones || { Q1: data.Q1 || 0, Q2: data.Q2 || 0, Q3: data.Q3 || 0, Q4: data.Q4 || 0 };
+  const keys = Object.keys(zoneMap);
+  if (keys.join(',') !== (activeZoneConfig.labels || []).join(',')) {
+    buildZoneUI({ rows: activeZoneConfig.rows, cols: activeZoneConfig.cols, angle_mode: activeZoneConfig.angle_mode, labels: keys });
+  }
+
+  updateCtr++;
+  $('stFps').textContent = Number(fps).toFixed(1);
+  $('stPersons').textContent = total;
+  $('stFrameCounter').textContent = `${Number(frame).toLocaleString()} Inferences Processed`;
+  $('stSource').textContent = 'STREAMING';
+  $('hudOverlay').style.display = 'flex';
+  $('hudOccupancy').textContent = `${total} Students`;
+  $('hudFpsBadge').textContent = `${Number(fps).toFixed(1)} FPS`;
+
+  if (appliances) updateAppliances(appliances, total);
+  renderZoneValues(zoneMap, total);
+
+  if (updateCtr % CHART_THR === 0) {
+    histLabels.push(frame);
+    (activeZoneConfig.labels || keys).forEach(lbl => {
+      if (!histSeries[lbl]) histSeries[lbl] = [];
+      histSeries[lbl].push(zoneMap[lbl] || 0);
+    });
+    histSeries.Total.push(total);
+    if (histLabels.length > MAX_HIST) {
+      histLabels.shift();
+      Object.values(histSeries).forEach(arr => arr.shift());
+    }
+    histChart.update('none');
+    donutChart.data.datasets[0].data = (activeZoneConfig.labels || keys).map(lbl => zoneMap[lbl] || 0);
+    donutChart.update('none');
+  }
+
+  logRowCtr++;
+  const tbody = $('logBody');
+  const summary = (activeZoneConfig.labels || keys).map(k => `${k}:${zoneMap[k] || 0}`).join(' ');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>#${frame}</td><td>${summary}</td><td style="font-weight:700;">${total}</td><td>${Number(fps).toFixed(1)}</td>`;
+  tbody.insertBefore(tr, tbody.firstChild);
+  while (tbody.children.length > MAX_ROWS) tbody.removeChild(tbody.lastChild);
+  $('logCountBadge').textContent = `${Math.min(logRowCtr, MAX_ROWS)} entries`;
+});
+
+socket.on('srv_notice', d => toast(d.message || 'Pipeline notice', 'info'));
+socket.on('srv_stopped', () => {
+  setStatus('stopped');
+  if ($('btnPlayDemo'))    $('btnPlayDemo').disabled = false;
+  if ($('btnStartWebcam')) $('btnStartWebcam').disabled = false;
+  if ($('btnPlayCustom'))  $('btnPlayCustom').disabled = false;
+  if ($('btnStopFeed'))    $('btnStopFeed').disabled = true;
+  $('videoFeed').style.display = 'none';
+  $('videoFeed').src = '';
+  $('hudOverlay').style.display = 'none';
+  $('noFeedView').style.display = 'flex';
+  toast('Stream stopped', 'info');
+});
+
+socket.on('srv_error', d => {
+  toast(d.message || 'Stream error', 'error');
+  setStatus('idle');
+  if ($('btnPlayDemo'))    $('btnPlayDemo').disabled = false;
+  if ($('btnStartWebcam')) $('btnStartWebcam').disabled = false;
+  if ($('btnPlayCustom'))  $('btnPlayCustom').disabled = false;
+  if ($('btnStopFeed'))    $('btnStopFeed').disabled = true;
+  $('videoFeed').style.display = 'none';
+  $('hudOverlay').style.display = 'none';
+  $('noFeedView').style.display = 'flex';
+});
+
+if ($('btnPlayDemo'))    $('btnPlayDemo').addEventListener('click', () => startStream('demo'));
+if ($('btnStartWebcam')) $('btnStartWebcam').addEventListener('click', () => startStream('webcam'));
+if ($('btnPlayCustom'))  $('btnPlayCustom').addEventListener('click', () => {
+  const p = ($('customVideoPath')?.value || '').trim();
+  if (!p) { toast('Enter a video file path or RTSP URL first', 'error'); return; }
+  startStream('video', p);
+});
+if ($('btnStopFeed'))    $('btnStopFeed').addEventListener('click', stopStream);
+
+async function startStream(sourceType, customPath = '') {
+  const payload = { source: sourceType };
+  if (customPath) payload.path = customPath;
+  const res = await fetch('/api/stream/start', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error || 'Failed to start stream', 'error'); return; }
+
+  setStatus('live');
+  if ($('btnPlayDemo'))    $('btnPlayDemo').disabled = true;
+  if ($('btnStartWebcam')) $('btnStartWebcam').disabled = true;
+  if ($('btnPlayCustom'))  $('btnPlayCustom').disabled = true;
+  if ($('btnStopFeed'))    $('btnStopFeed').disabled = false;
+
+  $('noFeedView').style.display = 'none';
+  $('videoFeed').src = '/video_feed?' + Date.now();
+  $('videoFeed').style.display = 'block';
+  $('hudOverlay').style.display = 'flex';
+  $('hudModeTxt').textContent = sourceType === 'demo' ? 'DEMO STREAM' : 'LIVE STREAM';
+  toast(`Started ${sourceType} stream`, 'success');
+}
+
+async function stopStream() {
+  const btn = $('btnStopFeed');
+  if (btn) btn.disabled = true;
+  const res = await fetch('/api/stream/stop', { method: 'POST' });
+  if (!res.ok && btn) btn.disabled = false;
+}
+
+async function applyQuickZone() {
+  const val = $('quickZonePreset')?.value || '2x2|overhead';
+  const [dims, angle] = val.split('|');
+  const [rows, cols] = dims.split('x').map(Number);
+  const res = await fetch('/api/zones', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rows, cols, angle_mode: angle })
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error || 'Failed to update grid', 'error'); return; }
+  buildZoneUI(data.zone_config);
+}
+
+async function initLivePage() {
+  try {
+    const res = await fetch('/api/stream/status');
+    if (!res.ok) return;
+    const s = await res.json();
+    if (s.zone_config) {
+      buildZoneUI(s.zone_config);
+      if ($('quickZonePreset')) {
+        const key = `${s.zone_config.rows}x${s.zone_config.cols}|${s.zone_config.angle_mode}`;
+        if ([...$('quickZonePreset').options].some(o => o.value === key)) $('quickZonePreset').value = key;
+      }
+    } else {
+      buildZoneUI(activeZoneConfig);
+    }
+
+    const total = s.total_persons || 0;
+    const zoneMap = s.zones || s.quadrants || { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+    $('stPersons').textContent = total;
+    $('stFps').textContent = s.fps ? Number(s.fps).toFixed(1) : '0.0';
+    renderZoneValues(zoneMap, total);
+    if (s.appliances) updateAppliances(s.appliances, total);
+
+    if (s.running) {
+      setStatus('live');
+      if ($('btnPlayDemo'))    $('btnPlayDemo').disabled = true;
+      if ($('btnStartWebcam')) $('btnStartWebcam').disabled = true;
+      if ($('btnPlayCustom'))  $('btnPlayCustom').disabled = true;
+      if ($('btnStopFeed'))    $('btnStopFeed').disabled = false;
+      $('stSource').textContent = 'STREAMING';
+      $('noFeedView').style.display = 'none';
+      $('videoFeed').src = '/video_feed?' + Date.now();
+      $('videoFeed').style.display = 'block';
+      $('hudOverlay').style.display = 'flex';
+      $('hudOccupancy').textContent = `${total} Students`;
+      $('hudFpsBadge').textContent = `${Number(s.fps || 0).toFixed(1)} FPS`;
+    }
+  } catch (e) { console.warn('Live init error:', e); }
+}
+
+initLivePage();
+</script>
+{% endblock %}

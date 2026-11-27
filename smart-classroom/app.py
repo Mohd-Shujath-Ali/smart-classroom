@@ -287,9 +287,28 @@ def logout_page():
 
 
 @app.route("/")
+@app.route("/live")
 @login_required
 def index():
-    return render_template("index.html")
+    return render_template("live.html", active_page="live")
+
+
+@app.route("/snapshots")
+@roles_required("admin", "faculty")
+def snapshots_page():
+    return render_template("snapshots.html", active_page="snapshots")
+
+
+@app.route("/analytics")
+@login_required
+def analytics_page():
+    return render_template("analytics.html", active_page="analytics")
+
+
+@app.route("/settings")
+@roles_required("admin")
+def settings_page():
+    return render_template("settings.html", active_page="settings")
 
 
 @app.route("/assets/<path:filename>")

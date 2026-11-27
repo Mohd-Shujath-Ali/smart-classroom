@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}24h Analytics{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-hd">
+    <span>Historical Classroom Attendance (Past 24 Hours &bull; SQLite WAL)</span>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <span class="badge" id="dbTotalFrames">0 frames logged</span>
+      <button class="q-btn" style="padding:4px 10px; font-size:.72rem;" onclick="window.location.href='/api/export/csv'">Export CSV</button>
+      <button class="q-btn accent" style="padding:4px 10px; font-size:.72rem;" onclick="downloadDbChart()">Download Graph</button>
+    </div>
+  </div>
+
+  <div class="db-stats-row">
+    <div class="db-stat-mini"><div class="db-lbl">All-Time Peak</div><div class="db-num" id="dbPeak">0</div></div>
+    <div class="db-stat-mini"><div class="db-lbl">24h Average Attendance</div><div class="db-num" id="dbAvg">0.0</div></div>
+    <div class="db-stat-mini"><div class="db-lbl">Total Recorded Sessions</div><div class="db-num" id="dbSessions">0</div></div>
+    <div class="db-stat-mini"><div class="db-lbl">Energy Efficiency Index</div><div class="db-num" id="dbEfficiency" style="color:var(--green);">--</div></div>
+  </div>
+
+  <div class="chart-body" style="height:290px; display:flex; align-items:center; justify-content:center;">
+    <canvas id="dbChart" style="max-height:100%; width:100%;"></canvas>
+  </div>
+</div>
+
+<div class="history-grid">
+  <div class="card">
+    <div class="card-hd">
+      <span>Recorded Sessions</span>
+      <button class="q-btn" style="padding:3px 10px; font-size:.70rem;" onclick="fetchSessions()">Refresh</button>
+    </div>
+    <div class="table-scroll" style="max-height:280px;">
+      <table>
+        <thead>
+          <tr><th>Session</th><th>Source</th><th>Started</th><th>Frames</th><th>Peak</th><th>Average</th></tr>
+        </thead>
+        <tbody id="sessionsBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-hd">
+      <span>Session Timeline Inspector</span>
+      <span class="badge" id="timelineLabel">Click a session row</span>
+    </div>
+    <div class="chart-body" style="height:280px;"><canvas id="timelineChart"></canvas></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dbChart = new Chart($('dbChart').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: [],
+    datasets: [
+      { label: 'Peak Occupancy', data: [], backgroundColor: 'rgba(31,111,235,.85)', borderRadius: 4 },
+      { label: 'Average Occupancy', data: [], type: 'line', borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,.14)', fill: true, tension: 0.4, borderWidth: 2 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { position: 'bottom', labels: { usePointStyle: true } }, tooltip: { backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1 } },
+    scales: { y: { beginAtZero: true, grid: { color: 'rgba(48,54,61,.45)' } }, x: { grid: { display: false } } }
+  }
+});
+
+const timelineChart = new Chart($('timelineChart').getContext('2d'), {
+  type: 'line',
+  data: { labels: [], datasets: [{ label: 'Total Students', data: [], borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,.15)', fill: true, tension: .35, borderWidth: 2 }] },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom' }, tooltip: { backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1 } },
+    scales: { y: { beginAtZero: true, grid: { color: 'rgba(48,54,61,.45)' } }, x: { grid: { color: 'rgba(48,54,61,.45)' } } }
+  }
+});
+
+async function fetchDbAnalytics() {
+  const res = await fetch('/api/analytics');
+  if (!res.ok) return;
+  const data = await res.json();
+  if (data.analytics) {
+    $('dbPeak').textContent        = data.analytics.all_time_peak || 0;
+    $('dbAvg').textContent         = data.analytics.overall_avg ? Number(data.analytics.overall_avg).toFixed(1) : '0.0';
+    $('dbSessions').textContent    = data.analytics.total_sessions || 0;
+    $('dbTotalFrames').textContent = (data.analytics.total_frames || 0).toLocaleString() + ' frames logged';
+    $('dbEfficiency').textContent  = `${Number(data.analytics.efficiency_index || 0).toFixed(1)}%`;
+  }
+  if (data.hourly && data.hourly.length > 0) {
+    dbChart.data.labels = data.hourly.map(r => new Date(r.hour_ts * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    dbChart.data.datasets[0].data = data.hourly.map(r => r.peak_persons);
+    dbChart.data.datasets[1].data = data.hourly.map(r => r.avg_persons);
+    dbChart.update();
+  }
+}
+
+async function fetchSessions() {
+  const res = await fetch('/api/sessions?limit=15');
+  if (!res.ok) return;
+  const rows = await res.json();
+  const tbody = $('sessionsBody');
+  tbody.innerHTML = rows.map(s => {
+    const dt = new Date(s.started_at * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return `<tr style="cursor:pointer;" onclick="inspectSession(${s.id}, '${s.source_type}')">
+      <td>#${s.id}</td><td>${s.source_type}</td><td>${dt}</td><td>${s.total_frames || 0}</td>
+      <td style="font-weight:700;">${s.peak_persons || 0}</td><td>${Number(s.avg_persons || 0).toFixed(1)}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function inspectSession(sid, src) {
+  const res = await fetch(`/api/sessions/${sid}/timeline`);
+  const data = await res.json();
+  if (!res.ok || !data.frames?.length) { toast(`No timeline data for Session #${sid}`, 'info'); return; }
+  timelineChart.data.labels = data.frames.map(f => `F${f.frame_no}`);
+  timelineChart.data.datasets[0].data = data.frames.map(f => f.total);
+  timelineChart.update();
+  $('timelineLabel').textContent = `Session #${sid} (${src})`;
+  toast(`Loaded timeline for Session #${sid}`, 'success');
+}
+
+function downloadDbChart() {
+  const canvas = $('dbChart');
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = canvas.width; exportCanvas.height = canvas.height;
+  const ctx = exportCanvas.getContext('2d');
+  ctx.fillStyle = '#161b22';
+  ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  ctx.drawImage(canvas, 0, 0);
+  const link = document.createElement('a');
+  link.download = 'classroom_historical_graph.png';
+  link.href = exportCanvas.toDataURL('image/png');
+  link.click();
+  toast('Downloaded historical attendance graph', 'success');
+}
+
+fetchDbAnalytics();
+fetchSessions();
+</script>
+{% endblock %}

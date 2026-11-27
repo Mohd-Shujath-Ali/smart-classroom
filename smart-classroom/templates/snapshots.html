@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %}Snapshot Analysis{% endblock %}
+
+{% block content %}
+<div class="quickbar">
+  <div class="quickbar-label"><span>1-Click Test Datasets:</span></div>
+  <div class="quickbar-group">
+    <button class="q-btn" data-sample="sample_1.jpg" onclick="runSample('sample_1.jpg')">
+      <span>Sample 1</span><span class="tag-badge">34 Students</span>
+    </button>
+    <button class="q-btn" data-sample="sample_2.jpg" onclick="runSample('sample_2.jpg')">
+      <span>Sample 2</span><span class="tag-badge">56 Students</span>
+    </button>
+    <button class="q-btn" data-sample="sample_3.jpg" onclick="runSample('sample_3.jpg')">
+      <span>Sample 3</span><span class="tag-badge">12 Students</span>
+    </button>
+    <button class="q-btn primary" onclick="$('imgInput').click()">
+      <span>Upload Image</span>
+    </button>
+  </div>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card c-persons">
+    <div class="st-hd"><span class="st-label">Snapshot Attendance</span></div>
+    <div class="st-val" id="stPersons">0</div>
+    <div class="st-sub">Students Detected</div>
+  </div>
+  <div class="stat-card c-energy">
+    <div class="st-hd"><span class="st-label">Energy Impact</span></div>
+    <div class="st-val" id="stWattsSaved" style="color:var(--green);">690W</div>
+    <div class="st-sub" id="stWattsPct">100% Load Saved vs Max</div>
+  </div>
+  <div class="stat-card c-fps">
+    <div class="st-hd"><span class="st-label">Active Zone Grid</span></div>
+    <div class="st-val sm" id="stZoneGrid">2x2 (overhead)</div>
+    <div class="st-sub">Configured via Camera Settings</div>
+  </div>
+  <div class="stat-card c-status">
+    <div class="st-hd"><span class="st-label">Pipeline Source</span></div>
+    <div class="st-val sm" id="stSource">SNAPSHOT READY</div>
+    <div class="st-sub" id="stFileName">Select a sample or drop an image</div>
+  </div>
+</div>
+
+<div class="main-grid">
+  <div class="card">
+    <div class="card-hd">
+      <span>Annotated Snapshot Viewport</span>
+      <span class="badge" id="snapDetBadge">0 detections</span>
+    </div>
+    <div class="viewport-canvas" id="snapCanvas">
+      <div class="hud-overlay" id="hudOverlay" style="display:none;">
+        <div class="hud-badge snapshot-indicator"><span>IMAGE SNAPSHOT</span></div>
+        <div class="hud-badge" id="hudOccupancy">0 Students</div>
+      </div>
+      <img id="resultImage" alt="YOLO Annotated Snapshot" />
+      <div class="no-feed-view" id="noFeedView">
+        <h3>Drop Classroom Image or Choose Sample</h3>
+        <p>Drag and drop any JPG, PNG, or WebP classroom photo onto this viewport, paste from clipboard (Ctrl+V), or select a test dataset above.</p>
+      </div>
+    </div>
+    <input type="file" id="imgInput" accept="image/*,.jpg,.jpeg,.png,.webp,.bmp" style="display:none;" />
+    <div style="padding:14px 18px; background:var(--bg2); border-top:1px solid var(--border); display:flex; align-items:center; gap:12px;">
+      <div class="upload-dropzone" id="uploadZone">
+        <div>
+          <div style="font-size:.82rem; font-weight:600;">Drop custom image here or click to browse</div>
+          <div style="font-size:.70rem; color:var(--text2);">JPG, PNG, WebP supported &bull; Press Ctrl+V anywhere on page to paste</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="card">
+      <div class="card-hd">
+        <span>Spatial Zone Breakdown</span>
+        <span class="badge" id="totalBadge">Total: 0</span>
+      </div>
+      <div class="z-grid" id="snapZoneGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">Zone Distribution</div>
+      <div class="donut-wrap"><canvas id="donutChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">
+        <span>Appliance Calculation</span>
+        <span class="mode-pill eco" id="applianceModeBadge">ECO SAVING (0)</span>
+      </div>
+      <div class="appliance-grid">
+        <div class="appliance-box" id="fanBox">
+          <div class="appliance-count cyan" id="fanCount">0</div>
+          <div class="appliance-sub">Fans Running</div>
+        </div>
+        <div class="appliance-box" id="lightBox">
+          <div class="appliance-count amber" id="lightCount">0</div>
+          <div class="appliance-sub">Lights Active</div>
+        </div>
+      </div>
+      <div class="appliance-info-bar">
+        <span id="energyRuleText">Standby: 0 Students (Eco Mode)</span>
+        <span id="energyWattsBadge" style="font-size:.70rem; color:var(--green); font-family:'JetBrains Mono'; font-weight:700;">690W SAVED (100%)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd">
+    <span>Detected Persons Bounding-Box Inspector</span>
+    <span class="badge" id="inspectorCount">0 objects</span>
+  </div>
+  <div class="det-list-wrap" id="detListContainer" style="max-height:320px;">
+    <div style="color:var(--muted); text-align:center; padding:18px;">Run inference on an image to inspect bounding boxes, confidence scores, and assigned zones.</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const donutChart = new Chart($('donutChart').getContext('2d'), {
+  type: 'doughnut',
+  data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderColor: [], borderWidth: 1.5, hoverOffset: 6 }] },
+  options: {
+    responsive: true, cutout: '66%', maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#161b22', borderColor: '#30363d', borderWidth: 1 } }
+  }
+});
+
+function setActiveSampleBtn(filename, loading = false) {
+  document.querySelectorAll('[data-sample]').forEach(btn => {
+    btn.classList.toggle('accent', btn.getAttribute('data-sample') === filename);
+    btn.disabled = loading;
+  });
+}
+
+function renderZoneGrid(zoneMap, cols, total) {
+  const keys = Object.keys(zoneMap);
+  const grid = $('snapZoneGrid');
+  grid.style.gridTemplateColumns = `repeat(${cols || 2}, 1fr)`;
+  grid.innerHTML = keys.map((k, idx) => {
+    const val = zoneMap[k] || 0;
+    const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+    const color = ZONE_PALETTE[idx % ZONE_PALETTE.length];
+    return `
+      <div class="z-cell">
+        <div class="z-chip" style="background:${color}22; color:${color};">${k}</div>
+        <div class="z-num" style="color:${color};">${val}</div>
+        <div class="z-pos">${pct}% share</div>
+        <div class="z-meter"><div class="z-fill" style="width:${pct}%; background:${color};"></div></div>
+      </div>
+    `;
+  }).join('');
+
+  donutChart.data.labels = keys;
+  donutChart.data.datasets[0].data = keys.map(k => zoneMap[k] || 0);
+  donutChart.data.datasets[0].backgroundColor = keys.map((_, i) => ZONE_PALETTE[i % ZONE_PALETTE.length] + 'cc');
+  donutChart.data.datasets[0].borderColor = keys.map((_, i) => ZONE_PALETTE[i % ZONE_PALETTE.length]);
+  donutChart.update();
+}
+
+async function runSample(filename) {
+  setActiveSampleBtn(filename, true);
+  toast(`Running YOLOv8 inference on ${filename}...`, 'info');
+  try {
+    const res = await fetch(`/api/samples/${filename}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Sample failed', 'error'); return; }
+    renderSnapshotResult(data, filename);
+  } catch (e) {
+    toast('Inference request failed', 'error');
+  } finally {
+    setActiveSampleBtn(filename, false);
+  }
+}
+
+async function handleUploadFile(file) {
+  if (!file) return;
+  setActiveSampleBtn(null, false);
+  const fileName = file.name || 'custom_upload.jpg';
+  toast(`Uploading and analyzing ${fileName}...`, 'info');
+
+  const fd = new FormData();
+  fd.append('file', file, fileName);
+  try {
+    const res = await fetch('/api/detect/image', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error || 'Detection failed', 'error'); return; }
+    renderSnapshotResult(data, fileName);
+  } catch (err) {
+    toast('Upload request failed', 'error');
+  } finally {
+    if ($('imgInput')) $('imgInput').value = '';
+  }
+}
+
+function renderSnapshotResult(data, name) {
+  setStatus('image');
+  $('noFeedView').style.display = 'none';
+  $('resultImage').src = data.image;
+  $('resultImage').style.display = 'block';
+  $('hudOverlay').style.display = 'flex';
+  $('hudOccupancy').textContent = `${data.total} Students`;
+
+  $('stPersons').textContent = data.total;
+  $('stSource').textContent = 'IMAGE';
+  $('stFileName').textContent = name;
+  $('totalBadge').textContent = `Total: ${data.total}`;
+  $('snapDetBadge').textContent = `${data.detection_count} detections`;
+  $('inspectorCount').textContent = `${data.detection_count} objects`;
+
+  const cfg = data.zone_config || { rows: 2, cols: 2, angle_mode: 'overhead' };
+  $('stZoneGrid').textContent = `${cfg.rows}x${cfg.cols} (${cfg.angle_mode})`;
+  renderZoneGrid(data.zones || data.quadrants || {}, cfg.cols, data.total);
+
+  if (data.appliances) updateAppliances(data.appliances, data.total);
+
+  const detWrap = $('detListContainer');
+  if (data.detections && data.detections.length > 0) {
+    detWrap.innerHTML = data.detections.map(d => `
+      <div class="det-item">
+        <div class="det-id">#${d.id}</div>
+        <div class="det-label">${d.label} (${d.confidence}%)</div>
+        <span class="det-conf">[${d.bbox.join(', ')}]</span>
+        <span class="det-quad">${d.zone || d.quadrant}</span>
+      </div>
+    `).join('');
+  } else {
+    detWrap.innerHTML = '<div style="color:var(--muted); text-align:center; padding:16px;">No students detected in this image.</div>';
+  }
+  toast(`Detected ${data.total} students in ${name}`, 'success');
+}
+
+const uploadZone = $('uploadZone'), fileInput = $('imgInput'), canvasEl = $('snapCanvas');
+if (uploadZone && fileInput) uploadZone.addEventListener('click', () => fileInput.click());
+if (fileInput) fileInput.addEventListener('change', function() { if (this.files && this.files.length) handleUploadFile(this.files[0]); });
+
+function bindDrop(el) {
+  if (!el) return;
+  ['dragenter','dragover'].forEach(ev => el.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); el.classList.add('over'); }));
+  el.addEventListener('dragleave', e => { e.preventDefault(); e.stopPropagation(); el.classList.remove('over'); });
+  el.addEventListener('drop', e => {
+    e.preventDefault(); e.stopPropagation(); el.classList.remove('over');
+    const f = (e.dataTransfer?.files?.[0]) || (e.dataTransfer?.items?.[0]?.getAsFile());
+    if (f) handleUploadFile(f);
+  });
+}
+bindDrop(uploadZone);
+bindDrop(canvasEl);
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) handleUploadFile(f); });
+window.addEventListener('paste', e => {
+  for (const item of (e.clipboardData?.items || [])) {
+    if (item.type.includes('image')) { const f = item.getAsFile(); if (f) { handleUploadFile(f); break; } }
+  }
+});
+
+// Init zone layout display
+fetch('/api/stream/status').then(r => r.json()).then(s => {
+  const cfg = s.zone_config || { rows: 2, cols: 2, angle_mode: 'overhead', labels: ['Q1','Q2','Q3','Q4'] };
+  $('stZoneGrid').textContent = `${cfg.rows}x${cfg.cols} (${cfg.angle_mode})`;
+  const empty = {};
+  (cfg.labels || ['Q1','Q2','Q3','Q4']).forEach(l => empty[l] = 0);
+  renderZoneGrid(empty, cfg.cols, 0);
+}).catch(() => {});
+</script>
+{% endblock %}

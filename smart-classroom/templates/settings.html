@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}System Settings{% endblock %}
+
+{% block content %}
+<div class="history-grid">
+  <!-- Dynamic Zone Separations & Camera Angle -->
+  <div class="card">
+    <div class="card-hd">
+      <span>Camera Angle &amp; Zone Separations</span>
+      <span class="badge" id="zonePreviewBadge">2x2 &bull; overhead</span>
+    </div>
+    <div style="padding:18px; display:flex; flex-direction:column; gap:14px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div>
+          <label style="display:block; font-size:.76rem; color:var(--text2); margin-bottom:6px;">Horizontal Rows (Depth)</label>
+          <select id="cfgRows" style="width:100%;" onchange="previewZones()">
+            <option value="1">1 Row</option>
+            <option value="2" selected>2 Rows (Default)</option>
+            <option value="3">3 Rows</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; font-size:.76rem; color:var(--text2); margin-bottom:6px;">Vertical Columns (Width)</label>
+          <select id="cfgCols" style="width:100%;" onchange="previewZones()">
+            <option value="1">1 Column</option>
+            <option value="2" selected>2 Columns (Default)</option>
+            <option value="3">3 Columns</option>
+            <option value="4">4 Columns</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label style="display:block; font-size:.76rem; color:var(--text2); margin-bottom:6px;">Camera Input Angle / Mounting Perspective</label>
+        <select id="cfgAngle" style="width:100%;" onchange="previewZones()">
+          <option value="overhead">Overhead Ceiling (90 deg Orthogonal)</option>
+          <option value="elevated_front">Elevated Front Center (Depth Perspective)</option>
+          <option value="corner_left">Front-Left Corner Mount (Diagonal Left Skew)</option>
+          <option value="corner_right">Front-Right Corner Mount (Diagonal Right Skew)</option>
+          <option value="wide_panoramic">Wide Wall Panoramic</option>
+        </select>
+      </div>
+
+      <div style="border:1px solid var(--border); border-radius:var(--r); padding:10px; background:var(--bg);">
+        <div style="font-size:.70rem; color:var(--text2); margin-bottom:8px; text-transform:uppercase;">Live Zone Layout Preview</div>
+        <div id="zonePreviewGrid" class="z-grid" style="min-height:110px;"></div>
+      </div>
+
+      <button class="q-btn primary" style="justify-content:center;" onclick="saveZoneConfig()">Save Camera Zone Layout</button>
+    </div>
+  </div>
+
+  <!-- YOLOv8 Confidence & Energy Control -->
+  <div class="card">
+    <div class="card-hd">
+      <span>Inference &amp; Appliance Calibration</span>
+      <span class="badge">Admin Console</span>
+    </div>
+    <div style="padding:18px; display:flex; flex-direction:column; gap:18px;">
+      <div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:.80rem;">
+          <span>YOLOv8 Confidence Threshold</span>
+          <strong id="confVal" style="font-family:'JetBrains Mono'; color:var(--cyan);">0.40</strong>
+        </div>
+        <input type="range" id="confSlider" min="0.15" max="0.85" step="0.05" value="0.40" style="width:100%; accent-color:var(--blue); cursor:pointer;" />
+        <div style="font-size:.72rem; color:var(--text2); margin-top:4px;">Controls minimum person detection confidence across live feeds and snapshots.</div>
+      </div>
+
+      <div style="border-top:1px solid var(--border); padding-top:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-size:.82rem; font-weight:600;">Appliance Grid Override</span>
+          <button class="q-btn" id="btnApplianceMode" onclick="toggleApplianceOverride()">AUTO AI</button>
+        </div>
+        <div class="appliance-grid" style="padding:0;">
+          <div class="appliance-box" id="fanBox">
+            <div class="appliance-count cyan" id="fanCount">0</div>
+            <div class="appliance-sub">Fans Running</div>
+            <div class="manual-steppers" id="fanSteppers" style="display:none; justify-content:center; gap:6px; margin-top:8px;">
+              <button class="q-btn" style="padding:2px 9px;" onclick="adjustAppliance('fans', -1)">-</button>
+              <button class="q-btn" style="padding:2px 9px;" onclick="adjustAppliance('fans', 1)">+</button>
+            </div>
+          </div>
+          <div class="appliance-box" id="lightBox">
+            <div class="appliance-count amber" id="lightCount">0</div>
+            <div class="appliance-sub">Lights Active</div>
+            <div class="manual-steppers" id="lightSteppers" style="display:none; justify-content:center; gap:6px; margin-top:8px;">
+              <button class="q-btn" style="padding:2px 9px;" onclick="adjustAppliance('lights', -1)">-</button>
+              <button class="q-btn" style="padding:2px 9px;" onclick="adjustAppliance('lights', 1)">+</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:10px; font-size:.76rem; color:var(--text2); display:flex; justify-content:space-between;">
+          <span id="energyRuleText">Standby Mode</span>
+          <span id="energyWattsBadge" style="color:var(--green); font-family:'JetBrains Mono'; font-weight:700;">690W SAVED</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Role-Based User Access Table -->
+<div class="card">
+  <div class="card-hd">
+    <span>Role-Based User Access Control</span>
+    <span class="badge">SQLite Auth Registry</span>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Username</th><th>Full Name</th><th>Assigned Role</th><th>Update Access</th></tr>
+      </thead>
+      <tbody id="usersBody"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewZones() {
+  const rows = parseInt($('cfgRows').value, 10);
+  const cols = parseInt($('cfgCols').value, 10);
+  const angle = $('cfgAngle').value;
+  $('zonePreviewBadge').textContent = `${rows}x${cols} | ${angle}`;
+  const grid = $('zonePreviewGrid');
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  const total = rows * cols;
+  let html = '';
+  for (let i = 1; i <= total; i++) {
+    const label = (rows === 2 && cols === 2) ? `Q${i}` : `Z${i}`;
+    const c = ZONE_PALETTE[(i - 1) % ZONE_PALETTE.length];
+    html += `<div class="z-cell" style="padding:10px;"><span class="z-chip" style="background:${c}22; color:${c}; margin:0;">${label}</span></div>`;
+  }
+  grid.innerHTML = html;
+}
+
+async function saveZoneConfig() {
+  const rows = parseInt($('cfgRows').value, 10);
+  const cols = parseInt($('cfgCols').value, 10);
+  const angle_mode = $('cfgAngle').value;
+  const res = await fetch('/api/zones', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rows, cols, angle_mode })
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error || 'Failed to update zone config', 'error'); return; }
+  toast(`Saved ${rows}x${cols} (${angle_mode}) camera zone layout`, 'success');
+}
+
+$('confSlider').addEventListener('input', e => { $('confVal').textContent = Number(e.target.value).toFixed(2); });
+$('confSlider').addEventListener('change', async e => {
+  const res = await fetch('/api/config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conf_threshold: Number(e.target.value) })
+  });
+  if (res.ok) toast(`Confidence threshold updated to ${Number(e.target.value).toFixed(2)}`, 'success');
+});
+
+async function loadUsers() {
+  const res = await fetch('/api/users');
+  if (!res.ok) return;
+  const data = await res.json();
+  $('usersBody').innerHTML = (data.users || []).map(u => `
+    <tr>
+      <td>#${u.id}</td>
+      <td>${u.username}</td>
+      <td>${u.full_name}</td>
+      <td><span class="role-badge ${u.role}">${u.role}</span></td>
+      <td>
+        <select onchange="changeRole(${u.id}, this.value)">
+          <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+          <option value="faculty" ${u.role==='faculty'?'selected':''}>Faculty</option>
+          <option value="viewer" ${u.role==='viewer'?'selected':''}>Viewer</option>
+        </select>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function changeRole(uid, role) {
+  const res = await fetch(`/api/users/${uid}/role`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role })
+  });
+  if (res.ok) { toast('User role updated', 'success'); loadUsers(); }
+  else toast('Failed to update role', 'error');
+}
+
+fetch('/api/stream/status').then(r => r.json()).then(s => {
+  if (s.conf_threshold !== undefined) {
+    $('confSlider').value = s.conf_threshold;
+    $('confVal').textContent = Number(s.conf_threshold).toFixed(2);
+  }
+  if (s.zone_config) {
+    $('cfgRows').value = s.zone_config.rows;
+    $('cfgCols').value = s.zone_config.cols;
+    $('cfgAngle').value = s.zone_config.angle_mode;
+  }
+  if (s.appliances) updateAppliances(s.appliances, s.total_persons || 0);
+  previewZones();
+});
+loadUsers();
+</script>
+{% endblock %}
