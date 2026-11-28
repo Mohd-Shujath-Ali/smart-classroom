@@ -18,6 +18,17 @@
       <span>Upload Image</span>
     </button>
   </div>
+  <div class="quickbar-group" style="margin-left:auto;">
+    <span class="quickbar-label" style="margin-right:4px;">Camera Grid:</span>
+    <select id="snapZonePreset" onchange="applySnapZone()">
+      <option value="2x2|overhead">2x2 Quadrant (Overhead)</option>
+      <option value="1x2|overhead">1x2 Left/Right Split</option>
+      <option value="2x1|elevated_front">2x1 Front/Back Split</option>
+      <option value="2x3|elevated_front">2x3 Wide Hall (6 Zones)</option>
+      <option value="3x2|corner_left">3x2 Corner Left (6 Zones)</option>
+      <option value="3x3|wide_panoramic">3x3 Panoramic (9 Zones)</option>
+    </select>
+  </div>
 </div>
 
 <div class="stats-row">
@@ -258,10 +269,32 @@ window.addEventListener('paste', e => {
   }
 });
 
+async function applySnapZone() {
+  const val = $('snapZonePreset')?.value || '2x2|overhead';
+  const [dims, angle] = val.split('|');
+  const [rows, cols] = dims.split('x').map(Number);
+  const res = await fetch('/api/zones', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rows, cols, angle_mode: angle })
+  });
+  const data = await res.json();
+  if (!res.ok) { toast(data.error || 'Failed to update zone grid', 'error'); return; }
+  const cfg = data.zone_config;
+  $('stZoneGrid').textContent = `${cfg.rows}x${cfg.cols} (${cfg.angle_mode})`;
+  const empty = {};
+  (cfg.labels || []).forEach(l => empty[l] = 0);
+  renderZoneGrid(empty, cfg.cols, 0);
+  toast(`Applied ${cfg.rows}x${cfg.cols} (${cfg.angle_mode}) grid. Re-run sample or upload to infer.`, 'info');
+}
+
 // Init zone layout display
 fetch('/api/stream/status').then(r => r.json()).then(s => {
   const cfg = s.zone_config || { rows: 2, cols: 2, angle_mode: 'overhead', labels: ['Q1','Q2','Q3','Q4'] };
   $('stZoneGrid').textContent = `${cfg.rows}x${cfg.cols} (${cfg.angle_mode})`;
+  if ($('snapZonePreset')) {
+    const key = `${cfg.rows}x${cfg.cols}|${cfg.angle_mode}`;
+    if ([...$('snapZonePreset').options].some(o => o.value === key)) $('snapZonePreset').value = key;
+  }
   const empty = {};
   (cfg.labels || ['Q1','Q2','Q3','Q4']).forEach(l => empty[l] = 0);
   renderZoneGrid(empty, cfg.cols, 0);

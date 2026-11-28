@@ -294,10 +294,19 @@ def get_hourly_summary() -> list[dict]:
 def get_session_timeline(session_id: int) -> list[dict]:
     """Lightweight per-frame timeline for the selected session chart."""
     rows = _conn().execute(
-        """SELECT frame_no, q1, q2, q3, q4, total
+        """SELECT frame_no, q1, q2, q3, q4, total, zones_json
            FROM frames
            WHERE session_id = ?
            ORDER BY frame_no""",
         (session_id,),
     ).fetchall()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("zones_json"):
+            try:
+                d["zones"] = json.loads(d["zones_json"])
+            except ValueError:
+                d["zones"] = {"Q1": d["q1"], "Q2": d["q2"], "Q3": d["q3"], "Q4": d["q4"]}
+        result.append(d)
+    return result
