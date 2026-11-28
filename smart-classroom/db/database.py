@@ -6,6 +6,7 @@ sessions  : one row per start/stop detection run
 frames    : one row per processed frame (linked to sessions)
 """
 
+import json
 import sqlite3
 import threading
 import time
@@ -65,6 +66,9 @@ def init_db():
                 created_at    REAL    NOT NULL
             );
         """)
+        cols = {r[1] for r in c.execute("PRAGMA table_info(frames)").fetchall()}
+        if "zones_json" not in cols:
+            c.execute("ALTER TABLE frames ADD COLUMN zones_json TEXT")
     seed_default_users_if_empty()
     seed_historical_data_if_empty()
     print(f"[DB] Ready -> {DB_PATH}")
@@ -199,10 +203,11 @@ _BATCH_SIZE    = 30          # flush to DB every N frames
 
 
 def record_frame(session_id: int, frame_no: int, fps: float,
-                 q1: int, q2: int, q3: int, q4: int):
+                 q1: int, q2: int, q3: int, q4: int, zones: dict | None = None):
     """Buffer a frame record; flush to DB in batches."""
-    total = q1 + q2 + q3 + q4
-    row   = (session_id, frame_no, time.time(), fps, q1, q2, q3, q4, total)
+    total = sum(zones.values()) if zones else (q1 + q2 + q3 + q4)
+    zones_json = json.dumps(zones) if zones else json.dumps({"Q1": q1, "Q2": q2, "Q3": q3, "Q4": q4})
+    row   = (session_id, frame_no, time.time(), fps, q1, q2, q3, q4, total, zones_json)
     with _BATCH_LOCK:
         _BATCH.append(row)
         if len(_BATCH) >= _BATCH_SIZE:
@@ -222,8 +227,8 @@ def _flush():
     c = _conn()
     c.executemany(
         """INSERT INTO frames
-           (session_id, frame_no, ts, fps, q1, q2, q3, q4, total)
-           VALUES (?,?,?,?,?,?,?,?,?)""",
+           (session_id, frame_no, ts, fps, q1, q2, q3, q4, total, zones_json)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
         _BATCH,
     )
     c.commit()

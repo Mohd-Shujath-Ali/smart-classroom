@@ -17,7 +17,7 @@ from io import StringIO
 # ── Resolve local imports ─────────────────────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from detector.yolo_detector import YOLODetector
-from utils.visualizer import Visualizer
+from utils.visualizer import Visualizer, make_zone_labels, compute_row_breaks, compute_col_x_norm
 from config import MODEL_PATH, CONF_THRESHOLD, CAMERA_INDEX
 
 from db.database import (
@@ -49,6 +49,8 @@ state = {
     "fps"          : 0.0,
     "total_persons": 0,
     "quadrants"    : {"Q1": 0, "Q2": 0, "Q3": 0, "Q4": 0},
+    "zones"        : {"Q1": 0, "Q2": 0, "Q3": 0, "Q4": 0},
+    "zone_config"  : {"rows": 2, "cols": 2, "angle_mode": "overhead", "labels": ["Q1", "Q2", "Q3", "Q4"]},
     "history"      : [],          # rolling list of frame records
     "appliance_override": {"manual": False, "fans": 0, "lights": 0},
 }
@@ -59,20 +61,57 @@ stop_event    = threading.Event()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-def get_quadrant_counts(frame, detections):
-    h, w    = frame.shape[:2]
-    mx, my  = w // 2, h // 2
-    counts  = {"Q1": 0, "Q2": 0, "Q3": 0, "Q4": 0}
+VALID_ANGLE_MODES = ("overhead", "elevated_front", "corner_left", "corner_right", "wide_panoramic")
+
+
+def point_zone(frame, cx, cy, cfg=None):
+    cfg = cfg or state["zone_config"]
+    h, w = frame.shape[:2]
+    x_norm = max(0.0, min(0.9999, cx / max(1, w)))
+    y_norm = max(0.0, min(0.9999, cy / max(1, h)))
+    rows, cols, angle_mode = cfg["rows"], cfg["cols"], cfg["angle_mode"]
+    y_breaks = compute_row_breaks(rows, angle_mode)
+
+    row_idx = rows - 1
+    for r in range(rows):
+        if y_breaks[r] <= y_norm <= y_breaks[r + 1]:
+            row_idx = r
+            break
+
+    col_idx = cols - 1
+    for c in range(cols):
+        xl = compute_col_x_norm(c, cols, y_norm, angle_mode)
+        xr = compute_col_x_norm(c + 1, cols, y_norm, angle_mode)
+        if xl <= x_norm <= xr:
+            col_idx = c
+            break
+
+    labels = cfg["labels"]
+    return labels[row_idx * cols + col_idx]
+
+
+def get_zone_counts(frame, detections, cfg=None):
+    cfg = cfg or state["zone_config"]
+    counts = {lbl: 0 for lbl in cfg["labels"]}
     for det in detections:
         if det["label"].lower() != "person":
             continue
         x1, y1, x2, y2 = det["bbox"]
         cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-        if   cx < mx and cy < my:  counts["Q1"] += 1
-        elif cx >= mx and cy < my: counts["Q2"] += 1
-        elif cx < mx and cy >= my: counts["Q3"] += 1
-        else:                      counts["Q4"] += 1
+        z = point_zone(frame, cx, cy, cfg)
+        counts[z] = counts.get(z, 0) + 1
     return counts
+
+
+def to_legacy_quadrants(counts: dict) -> dict:
+    """Map any dynamic zone dict onto Q1..Q4 keys for DB column compatibility."""
+    vals = list(counts.values())
+    return {
+        "Q1": counts.get("Q1", vals[0] if len(vals) > 0 else 0),
+        "Q2": counts.get("Q2", vals[1] if len(vals) > 1 else 0),
+        "Q3": counts.get("Q3", vals[2] if len(vals) > 2 else 0),
+        "Q4": counts.get("Q4", sum(vals[3:]) if len(vals) > 3 else 0),
+    }
 
 def get_appliances_state(total):
     """Energy-saving rules: decide fan/light count and calculate wattage savings."""
@@ -157,26 +196,30 @@ def detection_loop(source):
         prev_time = now
         frame_count += 1
 
+        cfg        = dict(state["zone_config"])
         detections = detector.detect(frame)
-        counts     = get_quadrant_counts(frame, detections)
-        total      = sum(counts.values())
+        zone_counts = get_zone_counts(frame, detections, cfg)
+        legacy_q    = to_legacy_quadrants(zone_counts)
+        total       = sum(zone_counts.values())
 
         # Annotate
         annotated  = visualizer.draw(frame.copy(), detections)
-        visualizer.draw_quadrants(annotated, counts)
+        visualizer.draw_zones(annotated, zone_counts, cfg["rows"], cfg["cols"], cfg["angle_mode"])
 
         # Update shared state
         state.update({
             "frame_count"  : frame_count,
             "fps"          : round(fps, 1),
             "total_persons": total,
-            "quadrants"    : counts,
+            "quadrants"    : legacy_q,
+            "zones"        : zone_counts,
         })
         record = {
             "ts"   : round(now * 1000),
             "frame": frame_count,
             "fps"  : round(fps, 1),
-            **counts,
+            **legacy_q,
+            "zones": zone_counts,
             "total": total,
         }
         state["history"].append(record)
@@ -186,7 +229,8 @@ def detection_loop(source):
         # Record to database
         if state["session_id"] is not None:
             record_frame(state["session_id"], frame_count, fps,
-                         counts["Q1"], counts["Q2"], counts["Q3"], counts["Q4"])
+                         legacy_q["Q1"], legacy_q["Q2"], legacy_q["Q3"], legacy_q["Q4"],
+                         zones=zone_counts)
 
         # Encode JPEG for MJPEG stream
         _, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 78])
@@ -197,10 +241,12 @@ def detection_loop(source):
         socketio.emit("update", {
             "frame": frame_count,
             "fps"  : round(fps, 1),
-            "Q1"   : counts["Q1"],
-            "Q2"   : counts["Q2"],
-            "Q3"   : counts["Q3"],
-            "Q4"   : counts["Q4"],
+            "Q1"   : legacy_q["Q1"],
+            "Q2"   : legacy_q["Q2"],
+            "Q3"   : legacy_q["Q3"],
+            "Q4"   : legacy_q["Q4"],
+            "zones": zone_counts,
+            "zone_config": cfg,
             "total": total,
             "appliances": get_appliances_state(total)
         })
@@ -391,6 +437,8 @@ def api_start():
         return jsonify({"error": "Invalid source type", "code": "INVALID_SOURCE"}), 400
 
     # Reset
+    cfg = state["zone_config"]
+    empty_zones = {lbl: 0 for lbl in cfg["labels"]}
     session_id = start_session(source_type)
     state.update({
         "running"      : True,
@@ -399,7 +447,8 @@ def api_start():
         "frame_count"  : 0,
         "fps"          : 0.0,
         "total_persons": 0,
-        "quadrants"    : {"Q1": 0, "Q2": 0, "Q3": 0, "Q4": 0},
+        "quadrants"    : to_legacy_quadrants(empty_zones),
+        "zones"        : empty_zones,
         "history"      : [],
     })
     stop_event.clear()
@@ -445,6 +494,32 @@ def api_config():
     })
 
 
+@app.route("/api/zones", methods=["GET", "POST"])
+@login_required
+def api_zones():
+    if request.method == "POST":
+        if session.get("user", {}).get("role") not in ("admin", "faculty"):
+            return jsonify({"error": "Faculty or Admin role required"}), 403
+        data = request.json or {}
+        try:
+            rows = max(1, min(3, int(data.get("rows", state["zone_config"]["rows"]))))
+            cols = max(1, min(4, int(data.get("cols", state["zone_config"]["cols"]))))
+        except (TypeError, ValueError):
+            return jsonify({"error": "Invalid row or column count"}), 400
+
+        angle_mode = (data.get("angle_mode") or state["zone_config"]["angle_mode"]).strip()
+        if angle_mode not in VALID_ANGLE_MODES:
+            return jsonify({"error": "Invalid camera angle mode"}), 400
+
+        labels = make_zone_labels(rows, cols)
+        new_cfg = {"rows": rows, "cols": cols, "angle_mode": angle_mode, "labels": labels}
+        state["zone_config"] = new_cfg
+        state["zones"] = {lbl: 0 for lbl in labels}
+        state["quadrants"] = to_legacy_quadrants(state["zones"])
+        socketio.emit("zone_config_updated", new_cfg)
+    return jsonify({"success": True, "zone_config": state["zone_config"], "valid_angles": VALID_ANGLE_MODES})
+
+
 @app.route("/api/appliances/override", methods=["POST"])
 @roles_required("admin")
 def api_appliances_override():
@@ -482,6 +557,59 @@ def api_sample_list():
     return jsonify(samples)
 
 
+def _infer_snapshot_frame(frame, session_source: str, state_source_type: str, jpeg_quality: int = 88):
+    """Shared inference, annotation, DB logging, and response builder for image snapshots."""
+    cfg = dict(state["zone_config"])
+    detections = detector.detect(frame)
+    zone_counts = get_zone_counts(frame, detections, cfg)
+    legacy_q = to_legacy_quadrants(zone_counts)
+    total = sum(zone_counts.values())
+
+    annotated = visualizer.draw(frame.copy(), detections)
+    visualizer.draw_zones(annotated, zone_counts, cfg["rows"], cfg["cols"], cfg["angle_mode"])
+
+    _, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
+    img_b64 = "data:image/jpeg;base64," + base64.b64encode(buf).decode()
+
+    sid = start_session(session_source)
+    record_frame(sid, 1, 0.0, legacy_q["Q1"], legacy_q["Q2"], legacy_q["Q3"], legacy_q["Q4"], zones=zone_counts)
+    flush_all()
+    end_session(sid)
+
+    state.update({
+        "total_persons": total,
+        "quadrants": legacy_q,
+        "zones": zone_counts,
+        "source_type": state_source_type,
+    })
+
+    det_list = []
+    for i, d in enumerate(detections):
+        x1, y1, x2, y2 = d["bbox"]
+        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+        z_label = point_zone(frame, cx, cy, cfg)
+        det_list.append({
+            "id": i + 1,
+            "label": d["label"],
+            "confidence": round(d["confidence"] * 100, 1),
+            "bbox": [int(x) for x in d["bbox"]],
+            "zone": z_label,
+            "quadrant": z_label,
+        })
+
+    return {
+        "success": True,
+        "image": img_b64,
+        "quadrants": legacy_q,
+        "zones": zone_counts,
+        "zone_config": cfg,
+        "total": total,
+        "appliances": get_appliances_state(total),
+        "detection_count": len(detections),
+        "detections": det_list,
+    }
+
+
 @app.route("/api/samples/<name>", methods=["GET", "POST"])
 @app.route("/api/sample_image/<name>", methods=["GET", "POST"])
 @roles_required("admin", "faculty")
@@ -498,50 +626,9 @@ def api_sample_image(name):
     if frame is None:
         return jsonify({"error": "Cannot read sample image file"}), 400
 
-    detections = detector.detect(frame)
-    counts     = get_quadrant_counts(frame, detections)
-    total      = sum(counts.values())
-
-    annotated  = visualizer.draw(frame.copy(), detections)
-    visualizer.draw_quadrants(annotated, counts)
-
-    _, buf    = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 90])
-    img_b64   = "data:image/jpeg;base64," + base64.b64encode(buf).decode()
-
-    # Log to DB as a single-frame session
-    sid = start_session(f"sample_{name}")
-    record_frame(sid, 1, 0.0, counts["Q1"], counts["Q2"], counts["Q3"], counts["Q4"])
-    flush_all()
-    end_session(sid)
-
-    state.update({
-        "total_persons": total,
-        "quadrants"    : counts,
-        "source_type"  : "sample_image",
-    })
-
-    det_list = []
-    for i, d in enumerate(detections):
-        x1, y1, x2, y2 = d["bbox"]
-        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-        det_list.append({
-            "id"        : i + 1,
-            "label"     : d["label"],
-            "confidence": round(d["confidence"] * 100, 1),
-            "bbox"      : [int(x) for x in d["bbox"]],
-            "quadrant"  : point_quadrant(frame, cx, cy),
-        })
-
-    return jsonify({
-        "success"        : True,
-        "sample_name"    : name,
-        "image"          : img_b64,
-        "quadrants"      : counts,
-        "total"          : total,
-        "appliances"     : get_appliances_state(total),
-        "detection_count": len(detections),
-        "detections"     : det_list,
-    })
+    payload = _infer_snapshot_frame(frame, f"sample_{name}", "sample_image", jpeg_quality=90)
+    payload["sample_name"] = name
+    return jsonify(payload)
 
 
 # ── Image Snapshot Inference ──────────────────────────────────────────────────
@@ -566,57 +653,16 @@ def api_detect_image():
     if frame is None:
         return jsonify({"error": "Cannot decode image. Please provide a standard JPG, PNG, or WebP."}), 400
 
-    # Normalize image dimensions if excessively large to ensure ultra-fast inference and clear HUD labels
+    # Normalize image dimensions if excessively large to ensure fast inference and legible overlays
     h, w = frame.shape[:2]
     max_dim = 1280
     if max(h, w) > max_dim:
         scale = max_dim / max(h, w)
         frame = cv2.resize(frame, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
 
-    detections = detector.detect(frame)
-    counts     = get_quadrant_counts(frame, detections)
-    total      = sum(counts.values())
-
-    annotated  = visualizer.draw(frame.copy(), detections)
-    visualizer.draw_quadrants(annotated, counts)
-
-    _, buf    = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 88])
-    img_b64   = "data:image/jpeg;base64," + base64.b64encode(buf).decode()
-
-    # Log to DB as a single-frame session
-    sid = start_session("custom_image")
-    record_frame(sid, 1, 0.0, counts["Q1"], counts["Q2"], counts["Q3"], counts["Q4"])
-    flush_all()
-    end_session(sid)
-
-    state.update({
-        "total_persons": total,
-        "quadrants"    : counts,
-        "source_type"  : "custom_image",
-    })
-
-    det_list = []
-    for i, d in enumerate(detections):
-        x1, y1, x2, y2 = d["bbox"]
-        cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
-        det_list.append({
-            "id"        : i + 1,
-            "label"     : d["label"],
-            "confidence": round(d["confidence"] * 100, 1),
-            "bbox"      : [int(x) for x in d["bbox"]],
-            "quadrant"  : point_quadrant(frame, cx, cy),
-        })
-
-    return jsonify({
-        "success"        : True,
-        "filename"       : file.filename,
-        "image"          : img_b64,
-        "quadrants"      : counts,
-        "total"          : total,
-        "appliances"     : get_appliances_state(total),
-        "detection_count": len(detections),
-        "detections"     : det_list,
-    })
+    payload = _infer_snapshot_frame(frame, "custom_image", "custom_image", jpeg_quality=88)
+    payload["filename"] = file.filename
+    return jsonify(payload)
 
 
 # ── Historical Analytics & Persistence ────────────────────────────────────────

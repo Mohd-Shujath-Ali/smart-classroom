@@ -2,84 +2,90 @@ import cv2
 import time
 
 
+def make_zone_labels(rows: int, cols: int) -> list[str]:
+    """Return Q1..Q4 for standard 2x2 grids, otherwise Z1..ZN."""
+    if rows == 2 and cols == 2:
+        return ["Q1", "Q2", "Q3", "Q4"]
+    return [f"Z{i}" for i in range(1, rows * cols + 1)]
+
+
+def compute_row_breaks(rows: int, angle_mode: str) -> list[float]:
+    """Normalized vertical split points [0.0 .. 1.0] adapted to camera angle."""
+    exp = 1.32 if angle_mode in ("elevated_front", "corner_left", "corner_right") else 1.0
+    return [round((i / rows) ** exp, 4) for i in range(rows + 1)]
+
+
+def compute_col_x_norm(col_idx: int, cols: int, y_norm: float, angle_mode: str) -> float:
+    """Normalized horizontal boundary x at normalized depth y_norm for camera angle."""
+    base = col_idx / cols
+    if angle_mode == "elevated_front":
+        scale = 0.78 + 0.22 * y_norm
+        return max(0.0, min(1.0, 0.5 + (base - 0.5) * scale))
+    if angle_mode == "corner_left":
+        shift = 0.10 - 0.20 * y_norm
+        return max(0.0, min(1.0, base + shift)) if 0 < col_idx < cols else base
+    if angle_mode == "corner_right":
+        shift = -0.10 + 0.20 * y_norm
+        return max(0.0, min(1.0, base + shift)) if 0 < col_idx < cols else base
+    return base
+
+
 class Visualizer:
     def __init__(self):
         self.prev_time = 0
 
-    # ── Bounding boxes + labels ──────────────────────────────────────────────
     def draw(self, frame, detections):
         for det in detections:
             x1, y1, x2, y2 = det["bbox"]
             label = f"{det['label']} {det['confidence']:.2f}"
-
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(frame, label, (x1, y1 - 10),
+            cv2.putText(frame, label, (x1, max(18, y1 - 8)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         return frame
 
-    # ── Quadrant lines + per-quadrant person counters ────────────────────────
-    def draw_quadrants(self, frame, counts):
-        """
-        Overlay the 4-quadrant grid and person counts on *frame* (in-place).
-
-        counts: dict returned by get_quadrant_counts()  →  {"Q1":n, ...}
-
-        Layout:
-            Q1 (top-left)  | Q2 (top-right)
-            ───────────────+───────────────
-            Q3 (bot-left)  | Q4 (bot-right)
-        """
+    def draw_zones(self, frame, counts: dict, rows: int = 2, cols: int = 2, angle_mode: str = "overhead"):
+        """Overlay dynamic N-zone grid boundaries adapted to camera perspective."""
         h, w = frame.shape[:2]
-        mid_x, mid_y = w // 2, h // 2
+        line_color = (255, 200, 0)
+        text_color = (255, 220, 80)
+        font = cv2.FONT_HERSHEY_SIMPLEX
 
-        line_color  = (255, 255, 0)   # cyan-yellow
-        text_color  = (255, 255, 0)
-        font        = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale  = 0.7
-        thickness   = 2
+        y_breaks = compute_row_breaks(rows, angle_mode)
 
-        # Draw dividing lines
-        cv2.line(frame, (mid_x, 0), (mid_x, h), line_color, 1)   # vertical
-        cv2.line(frame, (0, mid_y), (w, mid_y), line_color, 1)   # horizontal
+        # Horizontal row dividers
+        for r in range(1, rows):
+            py = int(y_breaks[r] * h)
+            cv2.line(frame, (0, py), (w, py), line_color, 1, cv2.LINE_AA)
 
-        # Q1 — top-left
-        cv2.putText(frame,
-                    f"Q1: {counts['Q1']} person(s)",
-                    (10, mid_y - 10),
-                    font, font_scale, text_color, thickness, cv2.LINE_AA)
+        # Vertical / perspective column dividers
+        for c in range(1, cols):
+            x_top = int(compute_col_x_norm(c, cols, 0.0, angle_mode) * w)
+            x_bot = int(compute_col_x_norm(c, cols, 1.0, angle_mode) * w)
+            cv2.line(frame, (x_top, 0), (x_bot, h), line_color, 1, cv2.LINE_AA)
 
-        # Q2 — top-right
-        label_q2 = f"Q2: {counts['Q2']} person(s)"
-        (tw, _), _ = cv2.getTextSize(label_q2, font, font_scale, thickness)
-        cv2.putText(frame,
-                    label_q2,
-                    (w - tw - 10, mid_y - 10),
-                    font, font_scale, text_color, thickness, cv2.LINE_AA)
+        labels = make_zone_labels(rows, cols)
+        for r in range(rows):
+            ym = 0.5 * (y_breaks[r] + y_breaks[r + 1])
+            cy = int(ym * h)
+            for c in range(cols):
+                idx = r * cols + c
+                lbl = labels[idx]
+                x_left = compute_col_x_norm(c, cols, ym, angle_mode)
+                x_right = compute_col_x_norm(c + 1, cols, ym, angle_mode)
+                tx = max(8, int(((x_left + x_right) * 0.5) * w) - 38)
+                ty = max(24, int(y_breaks[r] * h) + 26)
+                cv2.putText(frame, f"{lbl}: {counts.get(lbl, 0)}", (tx, ty),
+                            font, 0.62, text_color, 2, cv2.LINE_AA)
 
-        # Q3 — bottom-left
-        cv2.putText(frame,
-                    f"Q3: {counts['Q3']} person(s)",
-                    (10, mid_y + 30),
-                    font, font_scale, text_color, thickness, cv2.LINE_AA)
-
-        # Q4 — bottom-right
-        label_q4 = f"Q4: {counts['Q4']} person(s)"
-        (tw, _), _ = cv2.getTextSize(label_q4, font, font_scale, thickness)
-        cv2.putText(frame,
-                    label_q4,
-                    (w - tw - 10, mid_y + 30),
-                    font, font_scale, text_color, thickness, cv2.LINE_AA)
-
-        # Total bar at bottom
         total = sum(counts.values())
-        cv2.putText(frame,
-                    f"Total persons: {total}",
-                    (10, h - 15),
-                    font, 0.7, (0, 200, 255), 2, cv2.LINE_AA)
-
+        cv2.putText(frame, f"Total persons: {total} ({rows}x{cols} {angle_mode})",
+                    (10, h - 14), font, 0.62, (0, 200, 255), 2, cv2.LINE_AA)
         return frame
 
-    # ── FPS counter ──────────────────────────────────────────────────────────
+    def draw_quadrants(self, frame, counts):
+        """Backward-compatible wrapper for default 2x2 grid."""
+        return self.draw_zones(frame, counts, rows=2, cols=2, angle_mode="overhead")
+
     def draw_fps(self, frame):
         curr_time = time.time()
         fps = 1 / (curr_time - self.prev_time) if self.prev_time else 0
